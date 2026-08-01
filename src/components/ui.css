@@ -1,0 +1,1070 @@
+/*
+ * Lading UI primitives.
+ *
+ * A screen declares its ground — `ink` (buyer) or `paper` (seller) — and every
+ * primitive below reads the remapped variables. That is why one component set
+ * renders both views without per-screen branching.
+ */
+
+/* ------------------------------------------------------------------ stage */
+
+.stage {
+  min-height: 100dvh;
+  background: var(--canvas);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+/* On a real phone the app fills the device; the frame is a desktop nicety. */
+@media (max-width: 480px) {
+  .stage {
+    padding: 0;
+    justify-content: flex-start;
+  }
+}
+
+/* ----------------------------------------------------------------- screen */
+
+.screen {
+  width: var(--screen-w);
+  height: var(--screen-h);
+  border: 1px solid var(--paper-line);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  position: relative;
+  background: var(--ground);
+  color: var(--fg);
+  font-family: var(--sans);
+}
+
+@media (max-width: 480px) {
+  .screen {
+    width: 100%;
+    height: 100dvh;
+    border: 0;
+  }
+}
+
+.screen[data-ground='ink'] {
+  --ground: var(--ink);
+  --raised: var(--ink-raised);
+  --line: var(--ink-line);
+  --line-strong: var(--ink-line-strong);
+  --fg: var(--on-ink);
+  --fg-muted: var(--on-ink-muted);
+  --fg-dim: var(--on-ink-dim);
+  --fg-faint: var(--on-ink-faint);
+  --action-bg: var(--paper);
+  --action-fg: var(--ink);
+}
+
+.screen[data-ground='paper'] {
+  --ground: var(--paper);
+  --raised: var(--paper-pure);
+  --line: var(--paper-line);
+  --line-strong: var(--on-ink-muted);
+  --fg: var(--on-paper);
+  --fg-muted: var(--on-paper-muted);
+  --fg-dim: var(--on-paper-dim);
+  --fg-faint: var(--on-paper-dim);
+  --action-bg: var(--ink);
+  --action-fg: var(--paper);
+}
+
+/* -------------------------------------------------------------- chrome */
+
+.statusbar {
+  height: 48px;
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 24px;
+  font-family: var(--mono);
+  font-size: 13px;
+  color: var(--fg);
+}
+
+.navbar {
+  height: 56px;
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 0 24px;
+  border-bottom: 1px solid var(--line);
+}
+
+.navbar__back {
+  font-size: 22px;
+  color: var(--fg);
+  line-height: 1;
+  padding: 0;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+}
+
+.navbar__label {
+  font-family: var(--mono);
+  font-size: 12px;
+  letter-spacing: 0.16em;
+  color: var(--fg-dim);
+}
+
+.navbar--spread {
+  justify-content: space-between;
+}
+
+.appbar {
+  height: 64px;
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 24px;
+  border-bottom: 1px solid var(--line);
+}
+
+.appbar__brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.appbar__wordmark {
+  font-family: var(--serif);
+  font-weight: 600;
+  font-size: 20px;
+  color: var(--fg);
+}
+
+/* The seller never sees the buyer's ground without being told whose screen
+ * this is. Oxide, because a counterparty view is a change in who holds value. */
+.sellerbar {
+  height: 44px;
+  flex: none;
+  background: var(--oxide);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--mono);
+  font-size: 12px;
+  letter-spacing: 0.2em;
+  color: var(--paper);
+}
+
+/* ------------------------------------------------------------------ body */
+
+.content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  padding: 28px 28px 32px;
+}
+
+.content[data-pad='roomy'] {
+  padding: 40px 28px 32px;
+}
+.content[data-pad='tight'] {
+  padding: 26px 28px 32px;
+}
+.content[data-pad='tightest'] {
+  padding: 24px 28px 32px;
+}
+.content[data-pad='flush'] {
+  padding: 0;
+}
+
+.content[data-center='true'] {
+  justify-content: center;
+}
+.content[data-center='between'] {
+  justify-content: space-between;
+}
+
+/* Pushes whatever follows to the foot of the screen. */
+.spacer {
+  margin-top: auto;
+}
+
+.stack {
+  display: flex;
+  flex-direction: column;
+}
+
+/* --------------------------------------------------------------- type */
+
+.title {
+  font-family: var(--serif);
+  font-weight: 400;
+  margin: 0;
+  color: var(--fg);
+}
+
+.title[data-size='44'] {
+  font-size: 44px;
+  line-height: 1.05;
+  letter-spacing: -0.025em;
+}
+.title[data-size='40'] {
+  font-size: 40px;
+  line-height: 1.08;
+  letter-spacing: -0.025em;
+}
+.title[data-size='38'] {
+  font-size: 38px;
+  line-height: 1.1;
+  letter-spacing: -0.025em;
+}
+.title[data-size='36'] {
+  font-size: 36px;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+}
+.title[data-size='32'] {
+  font-size: 32px;
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+}
+.title[data-size='30'] {
+  font-size: 30px;
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+}
+.title[data-size='28'] {
+  font-size: 28px;
+  line-height: 1.2;
+  letter-spacing: -0.015em;
+}
+.title[data-size='22'] {
+  font-size: 22px;
+  letter-spacing: -0.01em;
+}
+
+.lede {
+  margin: 0;
+  font-size: 17px;
+  line-height: 1.5;
+  color: var(--fg-muted);
+}
+
+.body {
+  margin: 0;
+  font-size: 16px;
+  line-height: 1.5;
+  color: var(--fg-muted);
+}
+
+.caption {
+  font-family: var(--mono);
+  font-size: 12px;
+  letter-spacing: 0.14em;
+  color: var(--fg-dim);
+}
+
+.legal {
+  font-family: var(--mono);
+  font-size: 11px;
+  line-height: 1.6;
+  letter-spacing: 0.06em;
+  color: var(--fg-faint);
+  text-align: center;
+}
+
+.mono {
+  font-family: var(--mono);
+}
+
+.oxide {
+  color: var(--oxide);
+}
+
+/* --------------------------------------------------------------- actions */
+
+.btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  flex: none;
+  font-size: 17px;
+  font-weight: 500;
+  transition: opacity 120ms ease;
+}
+
+.btn:hover {
+  opacity: 0.88;
+}
+
+.btn:active {
+  opacity: 0.75;
+}
+
+/* Reversed out of the ground: the one action that moves the deal forward. */
+.btn--primary {
+  height: var(--control-h);
+  background: var(--action-bg);
+  color: var(--action-fg);
+}
+
+.btn--secondary {
+  height: 52px;
+  border: 1px solid var(--line);
+  color: var(--fg);
+  font-size: 16px;
+  font-weight: 400;
+}
+
+.btn--ghost {
+  height: 52px;
+  color: var(--fg-muted);
+  font-size: 15px;
+  font-weight: 400;
+}
+
+.btn--secondary[data-muted='true'] {
+  color: var(--fg-muted);
+}
+
+.btn--ghost[data-compact='true'] {
+  height: 48px;
+}
+
+.btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* ---------------------------------------------------------------- fields */
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.field__label {
+  font-family: var(--mono);
+  font-size: 12px;
+  letter-spacing: 0.14em;
+  color: var(--fg-dim);
+}
+
+.field__box {
+  height: var(--control-h);
+  border: 1px solid var(--line);
+  background: var(--raised);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 0 18px;
+  font-size: 17px;
+  color: var(--fg);
+  width: 100%;
+}
+
+.field__box[data-mono='true'] {
+  font-family: var(--mono);
+  font-size: 16px;
+}
+
+/* The phone number on sign-in is set larger — it is the only thing on screen. */
+.field__box[data-mono='lg'] {
+  font-family: var(--mono);
+  font-size: 18px;
+}
+
+.field__input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  padding: 0;
+  outline: none;
+}
+
+.field__input::placeholder {
+  color: var(--fg-faint);
+}
+
+.field__hint {
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--fg-dim);
+}
+
+.field__chevron {
+  color: var(--fg-dim);
+}
+
+/* The amount field is taller — the number is the point of the screen. */
+.field__box--amount {
+  height: 68px;
+}
+
+.amount {
+  font-family: var(--serif);
+  font-size: 34px;
+  letter-spacing: -0.02em;
+  color: var(--fg);
+  border: 0;
+  background: none;
+  padding: 0;
+  outline: none;
+  min-width: 0;
+  flex: 1;
+}
+
+.amount--display {
+  font-family: var(--serif);
+  font-size: 46px;
+  letter-spacing: -0.025em;
+  color: var(--fg);
+}
+
+/* ---------------------------------------------------------------- panels */
+
+.panel {
+  border: 1px solid var(--line);
+  background: var(--raised);
+  flex: none;
+}
+
+.panel[data-tone='strong'] {
+  border-color: var(--fg);
+}
+
+.panel[data-tone='oxide'] {
+  border-color: var(--oxide);
+}
+
+.panel[data-plain='true'] {
+  background: none;
+}
+
+.panel__row {
+  padding: 16px 18px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  font-size: 15px;
+}
+
+.panel__row + .panel__row {
+  border-top: 1px solid var(--line);
+}
+
+.panel__row[data-pad='roomy'] {
+  padding: 18px;
+}
+
+.panel__label {
+  color: var(--fg-dim);
+}
+
+.panel__label[data-muted='true'] {
+  color: var(--fg-muted);
+}
+
+.panel__value {
+  color: var(--fg);
+  text-align: right;
+}
+
+.panel__body {
+  padding: 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.rule {
+  height: 1px;
+  background: var(--line);
+  flex: none;
+}
+
+/* ------------------------------------------------------------- choices */
+
+/* Any list item the trader can pick: release condition, funding source,
+ * discrepancy reason. Oxide marks the live selection. */
+.choice {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  width: 100%;
+  border: 1px solid var(--line);
+  padding: 18px;
+  min-height: var(--tap);
+  color: var(--fg-dim);
+  font-size: 17px;
+  text-align: left;
+}
+
+.choice[data-pad='snug'] {
+  padding: 14px 18px;
+  font-size: 16px;
+}
+
+.choice[data-selected='true'] {
+  border-color: var(--oxide);
+  background: var(--raised);
+  color: var(--fg);
+}
+
+/* On the discrepancy screen every reason reads at full strength — none of them
+ * is a lesser option when the money is already stopped. */
+.choice[data-bright='true'] {
+  color: var(--fg);
+}
+
+.choice__text {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.choice[data-pad='snug'] .choice__text {
+  gap: 5px;
+}
+
+.choice__title {
+  font-size: inherit;
+  color: inherit;
+}
+
+.choice[data-selected='true'] .choice__title {
+  color: var(--fg);
+}
+
+.choice__detail {
+  font-size: 14px;
+  line-height: 1.45;
+  color: var(--fg-muted);
+}
+
+.choice__meta {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--fg-dim);
+}
+
+.choice__radio {
+  font-size: 15px;
+  color: var(--line-strong);
+  flex: none;
+}
+
+.choice[data-selected='true'] .choice__radio {
+  color: var(--oxide);
+}
+
+/* Buy / sell, side by side. */
+.segmented {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.segmented__option {
+  height: 52px;
+  border: 1px solid var(--line);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  color: var(--fg-dim);
+}
+
+.segmented__option[data-selected='true'] {
+  border-color: var(--oxide);
+  background: var(--raised);
+  color: var(--fg);
+}
+
+/* ------------------------------------------------------------ documents */
+
+.doc {
+  border: 1px solid var(--line);
+  background: var(--raised);
+  padding: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  min-height: var(--tap);
+  width: 100%;
+  text-align: left;
+}
+
+.doc[data-state='done'] {
+  border-color: var(--line);
+}
+
+.doc[data-state='strong'] {
+  border-color: var(--fg);
+}
+
+/* Not yet supplied — dashed, the universal "drop something here". */
+.doc[data-state='empty'] {
+  border-style: dashed;
+  border-color: var(--line-strong);
+  padding: 22px 18px;
+  min-height: 56px;
+}
+
+.doc[data-state='empty'][data-pad='roomy'] {
+  padding: 24px 18px;
+}
+
+.doc__text {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 0;
+}
+
+.doc__name {
+  font-size: 16px;
+  color: var(--fg);
+}
+
+.doc__meta {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--fg-dim);
+}
+
+.doc__status {
+  font-family: var(--mono);
+  font-size: 12px;
+  letter-spacing: 0.12em;
+  color: var(--oxide);
+  flex: none;
+}
+
+.doc__action {
+  font-family: var(--mono);
+  font-size: 13px;
+  color: var(--slate-light);
+  flex: none;
+}
+
+.screen[data-ground='paper'] .doc__action {
+  color: var(--slate);
+}
+
+/* ------------------------------------------------------------------ note */
+
+/* An explanatory aside. Slate rule by default; oxide only when the note is
+ * about value actually moving. */
+.note {
+  border-left: 3px solid var(--slate);
+  padding: 14px 16px;
+  background: var(--raised);
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--fg-muted);
+  flex: none;
+}
+
+.note[data-tone='oxide'] {
+  border-left-color: var(--oxide);
+}
+
+.note[data-boxed='true'] {
+  border: 1px solid var(--fg);
+  border-left: 1px solid var(--fg);
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.note__label {
+  font-family: var(--mono);
+  font-size: 12px;
+  letter-spacing: 0.14em;
+  color: var(--oxide);
+}
+
+.note__body {
+  font-size: 15px;
+  line-height: 1.5;
+  color: var(--fg-muted);
+}
+
+/* ----------------------------------------------------------------- stamp */
+
+/* FUNDED / RELEASED. Stamped like a docket, not celebrated. */
+.stamp {
+  border: 3px solid var(--oxide);
+  align-self: flex-start;
+  padding: 12px 20px;
+  font-family: var(--mono);
+  font-size: 16px;
+  letter-spacing: 0.22em;
+  color: var(--oxide);
+}
+
+.stamp[data-size='sm'] {
+  border-width: 2px;
+  padding: 7px 12px;
+  font-size: 11px;
+  letter-spacing: 0.18em;
+}
+
+/* ------------------------------------------------------------- progress */
+
+.steps {
+  display: flex;
+  gap: 6px;
+  flex: none;
+}
+
+.steps__step {
+  flex: 1;
+  height: 3px;
+  background: var(--line);
+}
+
+.steps__step[data-done='true'] {
+  background: var(--oxide);
+}
+
+.meter {
+  height: 8px;
+  background: var(--line);
+  display: flex;
+}
+
+.meter__fill {
+  background: var(--oxide);
+}
+
+.meter__ends {
+  display: flex;
+  justify-content: space-between;
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  color: var(--fg-dim);
+}
+
+/* ------------------------------------------------------------- timeline */
+
+.timeline {
+  display: flex;
+  flex-direction: column;
+}
+
+.timeline__item {
+  display: flex;
+  gap: 16px;
+  padding-bottom: 20px;
+}
+
+.timeline__item:last-child {
+  padding-bottom: 0;
+}
+
+.timeline__rail {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  flex: none;
+}
+
+.timeline__node {
+  width: 11px;
+  height: 11px;
+  flex: none;
+}
+
+.timeline__node[data-state='done'] {
+  background: var(--oxide);
+}
+.timeline__node[data-state='current'] {
+  border: 2px solid var(--oxide);
+}
+.timeline__node[data-state='pending'] {
+  border: 2px solid var(--line-strong);
+}
+
+.timeline__line {
+  width: 1px;
+  flex: 1;
+  background: var(--line);
+}
+
+.timeline__text {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.timeline__label {
+  font-size: 16px;
+  color: var(--fg);
+}
+
+.timeline__label[data-pending='true'] {
+  color: var(--fg-dim);
+}
+
+.timeline__meta {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--fg-dim);
+}
+
+.timeline__meta[data-pending='true'] {
+  color: var(--fg-faint);
+}
+
+/* --------------------------------------------------------------- tabbar */
+
+.tabbar {
+  height: 72px;
+  flex: none;
+  border-top: 1px solid var(--line);
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+}
+
+.tabbar__tab {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  color: var(--fg-faint);
+  height: 100%;
+}
+
+.tabbar__tab[data-active='true'] {
+  color: var(--fg);
+}
+
+.tabbar__icon {
+  font-size: 16px;
+}
+
+/* ------------------------------------------------------------ deal list */
+
+.deallist {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+}
+
+.deallist__item {
+  padding: 20px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  text-align: left;
+  width: 100%;
+}
+
+.deallist__item + .deallist__item {
+  border-top: 1px solid var(--line);
+}
+
+.deallist__head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+}
+
+.deallist__name {
+  font-size: 17px;
+  color: var(--fg);
+}
+
+.deallist__status {
+  font-family: var(--mono);
+  font-size: 12px;
+  letter-spacing: 0.1em;
+  flex: none;
+}
+
+.deallist__status[data-tone='oxide'] {
+  color: var(--oxide);
+}
+.deallist__status[data-tone='slate'] {
+  color: var(--slate-light);
+}
+.deallist__status[data-tone='dim'] {
+  color: var(--fg-dim);
+}
+
+.deallist__foot {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-family: var(--mono);
+  font-size: 13px;
+}
+
+.deallist__ref {
+  color: var(--fg-dim);
+}
+
+.deallist__value {
+  color: var(--fg-muted);
+  flex: none;
+}
+
+/* ----------------------------------------------------------- empty state */
+
+.empty {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 22px;
+  padding: 40px 32px;
+  text-align: center;
+}
+
+.empty__glyph {
+  width: 64px;
+  height: 64px;
+  border: 1px solid var(--line);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+}
+
+.empty__glyph-inner {
+  width: 30px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.empty__glyph-bar {
+  height: 4px;
+  background: var(--line-strong);
+}
+
+.empty__body {
+  max-width: 280px;
+}
+
+/* --------------------------------------------------------------- checks */
+
+.checkitem {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 15px;
+  color: var(--fg-muted);
+}
+
+.checkitem__mark {
+  width: 8px;
+  height: 8px;
+  background: var(--oxide);
+  flex: none;
+}
+
+/* The stablecoin layer, drawn as what it does: a rate held between two
+ * currencies. Never labelled as crypto. */
+.fxline {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-family: var(--mono);
+  font-size: 13px;
+  color: var(--fg);
+}
+
+.fxline__rule {
+  flex: 1;
+  height: 1px;
+  background: var(--line-strong);
+}
+
+/* ---------------------------------------------------------- certificate */
+
+.certificate {
+  flex: 1;
+  border: 1px solid var(--on-paper);
+  background: var(--paper-pure);
+  padding: 26px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.certificate__head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.certificate__fields {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  font-size: 13px;
+}
+
+.certificate__field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.certificate__key {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  color: var(--on-paper-dim);
+}
+
+.certificate__note {
+  font-size: 12px;
+  line-height: 1.55;
+  color: var(--on-paper-muted);
+}
+
+.certificate__foot {
+  margin-top: auto;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.certificate__verify {
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  color: var(--on-paper-dim);
+  text-align: right;
+  line-height: 1.6;
+}

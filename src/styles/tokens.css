@@ -1,0 +1,48 @@
+/*
+ * Lading design tokens.
+ * Lifted from the Claude Design source of record: `Lading App.dc.html` and
+ * `Lading Identity.dc.html`. Names follow the identity sheet — ink, oxide,
+ * manifest paper.
+ */
+
+:root {
+  /* ---- Ground ---- */
+  --ink: #16181a; /* buyer screens, primary type on paper */
+  --ink-raised: #1b1e20; /* fills inside an ink screen */
+  --ink-line: #2e3133; /* hairlines and inert borders on ink */
+  --ink-line-strong: #4a4d50; /* dashed drop zones, unmet timeline nodes */
+
+  --paper: #f4f1ea; /* manifest paper — seller screens, primary buttons on ink */
+  --paper-pure: #fff; /* raised fills inside a paper screen */
+  --paper-line: #cfc9bd; /* hairlines on paper, device bezel */
+  --canvas: #e8e4dc; /* the surface the phones sit on */
+
+  /* ---- Marks ---- */
+  --oxide: #8a3a24; /* value moving, or a condition met. Never decoration. */
+  --slate: #1f3a4d; /* the logo field and explanatory rules */
+  --slate-light: #9db4c2; /* secondary action on ink, in-transit status */
+
+  /* ---- Type on ink ---- */
+  --on-ink: #f4f1ea;
+  --on-ink-muted: #a9a396;
+  --on-ink-dim: #8b8578;
+  --on-ink-faint: #6b6558;
+
+  /* ---- Type on paper ---- */
+  --on-paper: #16181a;
+  --on-paper-muted: #45423c;
+  --on-paper-dim: #6b6558;
+
+  /* ---- Families ---- */
+  --sans: 'IBM Plex Sans', ui-sans-serif, system-ui, sans-serif;
+  --serif: 'IBM Plex Serif', ui-serif, Georgia, serif;
+  --mono: 'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+
+  /* ---- Device ---- */
+  --screen-w: 390px;
+  --screen-h: 844px;
+
+  /* ---- The floor for any action target ---- */
+  --tap: 44px;
+  --control-h: 56px;
+}

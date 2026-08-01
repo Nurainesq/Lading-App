@@ -1,0 +1,148 @@
+/*
+ * The design canvas — the whole journey laid out at once, the way the source
+ * design document presents it. This is a review surface, not part of the app.
+ */
+
+.canvas {
+  font-family: var(--sans);
+  color: var(--on-paper);
+  padding: 72px 64px 120px;
+  display: flex;
+  flex-direction: column;
+  gap: 56px;
+  background: var(--canvas);
+  min-height: 100dvh;
+}
+
+@media (max-width: 900px) {
+  .canvas {
+    padding: 40px 24px 80px;
+  }
+}
+
+.canvas__intro {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-width: 900px;
+}
+
+.canvas__eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.canvas__eyebrow-text {
+  font-family: var(--mono);
+  font-size: 12px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--on-paper-dim);
+}
+
+.canvas__title {
+  font-family: var(--serif);
+  font-weight: 500;
+  font-size: 44px;
+  margin: 0;
+  letter-spacing: -0.02em;
+}
+
+.canvas__lede {
+  margin: 0;
+  font-size: 16px;
+  line-height: 1.55;
+  color: var(--on-paper-muted);
+  text-wrap: pretty;
+}
+
+.canvas__stage {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+
+.canvas__stage-head {
+  display: flex;
+  align-items: baseline;
+  gap: 18px;
+  border-bottom: 2px solid var(--on-paper);
+  padding-bottom: 12px;
+  flex-wrap: wrap;
+}
+
+.canvas__stage-no {
+  font-family: var(--mono);
+  font-size: 13px;
+  letter-spacing: 0.18em;
+  color: var(--oxide);
+}
+
+.canvas__stage-name {
+  font-family: var(--serif);
+  font-size: 26px;
+  letter-spacing: -0.01em;
+}
+
+.canvas__stage-blurb {
+  font-size: 14px;
+  color: var(--on-paper-dim);
+}
+
+.canvas__row {
+  display: flex;
+  gap: 28px;
+  flex-wrap: wrap;
+}
+
+.canvas__item {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 390px;
+}
+
+/* Previews are frozen: the canvas shows the journey, the app plays it. */
+.canvas__preview {
+  pointer-events: none;
+}
+
+/* The device keeps its true size here even on a narrow viewport — this is a
+ * spec sheet, so it scrolls rather than reflows. */
+.canvas__preview .screen {
+  width: var(--screen-w);
+  height: var(--screen-h);
+  border: 1px solid var(--paper-line);
+}
+
+.canvas__caption {
+  display: flex;
+  gap: 10px;
+  align-items: baseline;
+}
+
+.canvas__caption-no {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--oxide);
+}
+
+.canvas__caption-text {
+  font-size: 14px;
+  color: var(--on-paper-muted);
+}
+
+.canvas__back {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  background: var(--ink);
+  color: var(--paper);
+  font-family: var(--mono);
+  font-size: 12px;
+  letter-spacing: 0.14em;
+  padding: 14px 20px;
+  text-decoration: none;
+  z-index: 10;
+}
