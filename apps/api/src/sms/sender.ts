@@ -37,7 +37,20 @@ export class LogSmsSender implements SmsSender {
   }
 
   async send({ to, body }: { to: string; body: string }): Promise<{ id: string }> {
-    this.#log(`[sms:log] to=${to} body=${body}`)
+    // Deliberately loud. This sits among structured JSON logs, and someone
+    // running the app for the first time has to find their sign-in code in it.
+    const code = /\b(\d{6})\b/.exec(body)?.[1]
+    this.#log(
+      [
+        '',
+        '  ┌─────────────────────────────────────────────',
+        '  │  SMS not sent — OTP_DELIVERY=log',
+        `  │  to    ${to}`,
+        code ? `  │  CODE  ${code}` : `  │  ${body}`,
+        '  └─────────────────────────────────────────────',
+        '',
+      ].join('\n'),
+    )
     return { id: `log_${Date.now()}` }
   }
 }

@@ -8,13 +8,17 @@ released when the bill of lading checks out against the terms they agreed.
 
 ## Run it yourself
 
+**On Windows, and never set this up before? Follow
+[docs/WINDOWS.md](docs/WINDOWS.md)** — it starts from nothing installed and
+assumes no prior experience.
+
 You need **Node 22+** and **PostgreSQL 16**. Nothing else — no WeWire account,
 no Twilio account, no cloud storage.
 
 ```bash
 git clone <this repo> && cd Lading-App
 git checkout claude/lading-app-implementation-wc99h6
-npm ci
+npm install
 ```
 
 ### Just want to see the screens?
@@ -30,38 +34,22 @@ and no API needed**; the canvas makes zero network calls.
 ### The working app
 
 ```bash
-# 1. A database
-createdb lading
-
-# 2. Configuration
-cp apps/api/.env.example apps/api/.env
-```
-
-Edit `apps/api/.env` and set two values:
-
-```bash
-DATABASE_URL=postgresql://localhost:5432/lading?schema=public
-JWT_SECRET=$(openssl rand -base64 48)        # paste the output
-WEWIRE_WEBHOOK_SECRET=whsec_$(openssl rand -base64 32)   # paste the output
-```
-
-The webhook secret is needed even without a WeWire account: the endpoint
-refuses unsigned deliveries, so without one a deal can never become funded.
-
-```bash
-# 3. Create the tables, then run both halves
-npm run db:generate
-npm run db:push -w @lading/api
-npm run dev            # API on :4000, app on :5173
+npm run setup     # writes apps/api/.env with generated secrets
+npm run db:setup  # creates the database and its tables
+npm run dev       # API on :4000, app on :5173
 ```
 
 Open **http://localhost:5173**.
 
+`npm run setup` assumes PostgreSQL is reachable at `localhost:5432` with user
+and password `postgres`. If yours differs, edit the `DATABASE_URL` line it
+writes into `apps/api/.env` — that is the only line you should need to touch.
+
 ### Walking a whole deal
 
 1. **Sign in.** Enter any phone number in international format, e.g.
-   `+233244123456`. The six-digit code is **printed in the API log** — look for
-   `[sms:log] to=+233… body=123456`. No SMS account required.
+   `+233244123456`. The six-digit code is **printed in the terminal**, in a
+   box headed `SMS not sent — OTP_DELIVERY=log`. No SMS account required.
 2. **Start a deal.** Fill in the counterparty, then goods and value (`28000.00`
    reproduces the design's figures), then send.
 3. **Be the seller.** The deal screen shows an **invite link**. Open it in a
@@ -97,6 +85,8 @@ Open **http://localhost:5173**.
 
 | Command | What it does |
 | --- | --- |
+| `npm run setup` | Generate `apps/api/.env` (safe to re-run) |
+| `npm run db:setup` | Create the database and tables |
 | `npm run dev` | Both halves at once |
 | `npm test` | 52 tests |
 | `npm run build` | Typecheck and build everything |

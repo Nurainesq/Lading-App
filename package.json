@@ -2,7 +2,7 @@
   "name": "lading",
   "private": true,
   "version": "0.1.0",
-  "description": "Lading — programmable trade escrow.",
+  "description": "Lading \u2014 programmable trade escrow.",
   "workspaces": [
     "packages/*",
     "apps/*"
@@ -16,7 +16,9 @@
     "db:generate": "npm run db:generate -w @lading/api",
     "db:migrate": "npm run db:migrate -w @lading/api",
     "dev:fund": "node --env-file-if-exists=apps/api/.env apps/api/scripts/simulate-funding.mjs",
-    "dev": "npm run build -w @lading/shared && concurrently -n api,web -c blue,magenta \"npm:dev:api\" \"npm:dev:web\""
+    "dev": "npm run build -w @lading/shared && concurrently -n api,web -c blue,magenta \"npm:dev:api\" \"npm:dev:web\"",
+    "setup": "node scripts/setup.mjs",
+    "db:setup": "npm run db:generate && npm run db:push -w @lading/api"
   },
   "engines": {
     "node": ">=22"
