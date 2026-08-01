@@ -3,12 +3,14 @@ import { Content, NavBar, Screen, StatusBar, Title } from '@/components/Screen'
 import { PrimaryButton } from '@/components/Button'
 import { Field, SelectBox, TextInput } from '@/components/Field'
 import { Segmented } from '@/components/Choice'
-import { useDeal } from '@/state/DealContext'
+import { useDraft } from '@/state/DraftContext'
 
 /** 04 — Counterparty. Side comes first, because it drives everything after. */
 export function NewDealCounterparty() {
   const navigate = useNavigate()
-  const deal = useDeal()
+  const { draft, set } = useDraft()
+
+  const ready = draft.counterpartyName.trim() !== '' && draft.counterpartyContact.trim() !== ''
 
   return (
     <Screen label="New deal — counterparty">
@@ -19,24 +21,30 @@ export function NewDealCounterparty() {
 
         <Segmented
           label="Which side of this trade are you on?"
-          value={deal.side}
-          onChange={(id) => deal.set('side', id as typeof deal.side)}
+          value={draft.side}
+          onChange={(id) => set('side', id as typeof draft.side)}
           options={[
-            { id: 'buying', label: "I'm buying" },
-            { id: 'selling', label: "I'm selling" },
+            { id: 'BUYING', label: "I'm buying" },
+            { id: 'SELLING', label: "I'm selling" },
           ]}
         />
 
-        <Field label={deal.side === 'buying' ? 'SELLER BUSINESS NAME' : 'BUYER BUSINESS NAME'}>
+        <Field
+          label={draft.side === 'BUYING' ? 'SELLER BUSINESS NAME' : 'BUYER BUSINESS NAME'}
+        >
           <TextInput
             label="Counterparty business name"
-            value={deal.sellerName}
-            onChange={(v) => deal.set('sellerName', v)}
+            value={draft.counterpartyName}
+            onChange={(v) => set('counterpartyName', v)}
+            placeholder="Al Habib Auto Parts LLC"
           />
         </Field>
 
         <Field label="COUNTRY">
-          <SelectBox label="Country" value={deal.country} />
+          <SelectBox
+            label="Country"
+            value={draft.counterpartyCountry === 'AE' ? 'United Arab Emirates' : draft.counterpartyCountry}
+          />
         </Field>
 
         <Field
@@ -47,13 +55,14 @@ export function NewDealCounterparty() {
             label="Their contact"
             mono
             inputMode="tel"
-            value={deal.contact}
-            onChange={(v) => deal.set('contact', v)}
+            value={draft.counterpartyContact}
+            onChange={(v) => set('counterpartyContact', v)}
+            placeholder="+971 50 448 2210"
           />
         </Field>
 
         <div className="spacer">
-          <PrimaryButton onClick={() => navigate('/deal/new/terms')}>
+          <PrimaryButton disabled={!ready} onClick={() => navigate('/deal/new/terms')}>
             Next — terms
           </PrimaryButton>
         </div>

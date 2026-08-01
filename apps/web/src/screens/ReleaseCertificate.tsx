@@ -2,13 +2,14 @@ import { useNavigate } from 'react-router-dom'
 import { NavBar, Screen, StatusBar, Title } from '@/components/Screen'
 import { Logo } from '@/components/Logo'
 import { Stamp } from '@/components/Stamp'
-import { deal as fixture } from '@/data/deal'
+import { useDealFigures } from '@/state/DealContext'
 
-const fields = [
-  { key: 'BUYER', value: `${fixture.buyer.business} · ${fixture.buyer.city}, ${fixture.buyer.country}` },
-  { key: 'SELLER', value: `${fixture.seller.business} · ${fixture.seller.city}, UAE` },
-  { key: 'CONSIGNMENT', value: fixture.consignment },
-]
+function certificateDate(iso: string | null): string {
+  if (!iso) return '—'
+  return new Date(iso)
+    .toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+    .toUpperCase()
+}
 
 /**
  * 16 — The certificate. A document a bank or insurer will accept later, which
@@ -16,13 +17,21 @@ const fields = [
  */
 export function ReleaseCertificate() {
   const navigate = useNavigate()
+  const deal = useDealFigures()
+  const billOfLading = deal.documents.find((d) => d.kind === 'BILL_OF_LADING')
+
+  const fields = [
+    { key: 'BUYER', value: deal.buyerName },
+    { key: 'SELLER', value: deal.sellerName },
+    { key: 'CONSIGNMENT', value: deal.goods },
+  ]
 
   return (
     <Screen ground="paper" label="Release certificate">
       <StatusBar />
       <NavBar
         label=""
-        onBack={() => navigate('/deal/released')}
+        onBack={() => navigate(`/deal/${deal.id}/released`)}
         action={
           <button
             type="button"
@@ -49,7 +58,7 @@ export function ReleaseCertificate() {
                   color: 'var(--on-paper-dim)',
                 }}
               >
-                {fixture.dates.certificate}
+                {deal.reference} · {certificateDate(deal.releasedAt ?? deal.createdAt)}
               </span>
             </div>
             <Logo size={34} field="ink" oneColour />
@@ -67,14 +76,14 @@ export function ReleaseCertificate() {
             <div className="certificate__field">
               <span className="certificate__key">VALUE ESCROWED</span>
               <span className="mono" style={{ fontSize: 15 }}>
-                {fixture.value.currency} {fixture.value.amount}
+                {deal.value.currency} {deal.value.display}
               </span>
             </div>
             <div className="certificate__field">
               <span className="certificate__key">CONDITION</span>
               <span>
-                Bill of lading {fixture.billOfLading}, presented and verified against
-                agreed terms.
+                Bill of lading {billOfLading?.filename.replace(/\.pdf$/i, '') ?? '—'},
+                presented and verified against agreed terms.
               </span>
             </div>
           </div>
@@ -87,11 +96,12 @@ export function ReleaseCertificate() {
           </p>
 
           <footer className="certificate__foot">
-            <Stamp size="sm">RELEASED</Stamp>
+            {/* Only a settled deal carries the stamp. */}
+            <Stamp size="sm">{deal.status === 'RELEASED' ? 'RELEASED' : 'PENDING'}</Stamp>
             <span className="certificate__verify">
               VERIFY AT
               <br />
-              LADING.APP/V/{fixture.reference}
+              LADING.APP/V/{deal.reference}
             </span>
           </footer>
         </article>

@@ -1,15 +1,30 @@
 import { useNavigate } from 'react-router-dom'
+import { RELEASE_CONDITIONS } from '@lading/shared'
 import { Content, NavBar, Screen, StatusBar, Title } from '@/components/Screen'
 import { PrimaryButton } from '@/components/Button'
 import { AmountInput, Field, FieldLabel, TextInput } from '@/components/Field'
 import { Choice, ChoiceGroup } from '@/components/Choice'
-import { releaseConditions } from '@/data/deal'
-import { useDeal } from '@/state/DealContext'
+import { useDraft } from '@/state/DraftContext'
+
+/** The one sentence that decides the release, in the trader's words. */
+const CONDITION_COPY: Record<
+  (typeof RELEASE_CONDITIONS)[number],
+  { label: string; detail?: string }
+> = {
+  VERIFIED_BILL_OF_LADING: {
+    label: 'Bill of lading presented and verified',
+    detail: 'Must match consignee, goods description and vessel on these terms.',
+  },
+  DELIVERY_CONFIRMATION: { label: 'On delivery confirmation at Tema' },
+  SPLIT_SHIPPING_DELIVERY: { label: 'Split: 50% on shipping, 50% on delivery' },
+}
 
 /** 05 — The conditions engine, made plain: one sentence decides the release. */
 export function NewDealTerms() {
   const navigate = useNavigate()
-  const deal = useDeal()
+  const { draft, set } = useDraft()
+
+  const ready = draft.goods.trim() !== '' && draft.value.trim() !== ''
 
   return (
     <Screen label="New deal — terms">
@@ -21,8 +36,9 @@ export function NewDealTerms() {
         <Field label="GOODS">
           <TextInput
             label="Goods"
-            value={deal.goods}
-            onChange={(v) => deal.set('goods', v)}
+            value={draft.goods}
+            onChange={(v) => set('goods', v)}
+            placeholder="Toyota & Nissan spare parts"
           />
         </Field>
 
@@ -30,34 +46,38 @@ export function NewDealTerms() {
           label="DEAL VALUE"
           hint={
             <span className="mono" style={{ fontSize: 12, color: 'var(--fg-dim)' }}>
-              YOU FUND IN GHS · SELLER RECEIVES AED
+              YOU FUND IN {draft.fundingCurrency} · SELLER RECEIVES {draft.settlementCurrency}
             </span>
           }
         >
           <AmountInput
-            value={deal.value}
-            onChange={(v) => deal.set('value', v)}
-            currency={deal.currency}
+            value={draft.value}
+            onChange={(v) => set('value', v)}
+            currency={draft.currency}
           />
         </Field>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           <FieldLabel>RELEASE WHEN</FieldLabel>
           <ChoiceGroup label="Release condition">
-            {releaseConditions.map((condition) => (
+            {RELEASE_CONDITIONS.map((condition) => (
               <Choice
-                key={condition.id}
-                title={condition.label}
-                detail={deal.releaseCondition === condition.id ? condition.detail : undefined}
-                selected={deal.releaseCondition === condition.id}
-                onSelect={() => deal.set('releaseCondition', condition.id)}
+                key={condition}
+                title={CONDITION_COPY[condition].label}
+                detail={
+                  draft.releaseCondition === condition
+                    ? CONDITION_COPY[condition].detail
+                    : undefined
+                }
+                selected={draft.releaseCondition === condition}
+                onSelect={() => set('releaseCondition', condition)}
               />
             ))}
           </ChoiceGroup>
         </div>
 
         <div className="spacer">
-          <PrimaryButton onClick={() => navigate('/deal/new/review')}>
+          <PrimaryButton disabled={!ready} onClick={() => navigate('/deal/new/review')}>
             Next — review
           </PrimaryButton>
         </div>

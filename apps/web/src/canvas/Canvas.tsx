@@ -1,5 +1,7 @@
 import { useEffect, useRef, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
+import type { DealDto } from '@lading/shared'
+import { PreviewDealProvider } from '@/state/DealContext'
 import { Logo } from '@/components/Logo'
 import { SignIn } from '@/screens/SignIn'
 import { VerifyBusiness } from '@/screens/VerifyBusiness'
@@ -23,7 +25,7 @@ interface Stage {
   no: string
   name: string
   blurb: string
-  screens: { no: string; caption: string; render: () => ReactNode }[]
+  screens: { no: string; caption: string; render: () => ReactNode; deal?: Partial<DealDto> }[]
 }
 
 const stages: Stage[] = [
@@ -52,7 +54,7 @@ const stages: Stage[] = [
       {
         no: '03',
         caption: 'Empty home — answers the first objection: does my supplier need this app?',
-        render: () => <Home />,
+        render: () => <Home preview="empty" />,
       },
       {
         no: '04',
@@ -67,7 +69,7 @@ const stages: Stage[] = [
       {
         no: '06',
         caption: 'Every number the buyer will be held to, before he commits.',
-        render: () => <NewDealReview />,
+        render: () => <NewDealReview preview />,
       },
     ],
   },
@@ -79,23 +81,26 @@ const stages: Stage[] = [
       {
         no: '07',
         caption: "Seller's first screen ever — paper ground, arrives by link, no account.",
-        render: () => <SellerAccept />,
+        render: () => <SellerAccept preview />,
       },
       {
         no: '08',
         caption: 'The virtual account, shown as an instrument — the escrow made tangible.',
         render: () => <EscrowAccount />,
+        deal: { status: 'AWAITING_FUNDING' },
       },
       {
         no: '09',
         caption:
           'Funding — the stablecoin layer explained as FX protection, never as crypto.',
         render: () => <FundEscrow />,
+        deal: { status: 'AWAITING_FUNDING' },
       },
       {
         no: '10',
         caption: 'The emotional peak for both sides — stamped, not celebratory.',
         render: () => <Funded />,
+        deal: { status: 'FUNDED' },
       },
     ],
   },
@@ -114,16 +119,19 @@ const stages: Stage[] = [
         no: '12',
         caption: 'Seller presents documents — the document layer, in the language of trade.',
         render: () => <SellerPresentDocuments />,
+        deal: { status: 'IN_TRANSIT' },
       },
       {
         no: '13',
         caption: "Verification — five named checks, and a dispute path that isn't hidden.",
         render: () => <DocumentCheck />,
+        deal: { status: 'DOCUMENTS_PRESENTED' },
       },
       {
         no: '14',
         caption: 'The unhappy path — the screen that decides whether traders believe you.',
         render: () => <Discrepancy />,
+        deal: { status: 'DOCUMENTS_PRESENTED' },
       },
     ],
   },
@@ -136,23 +144,29 @@ const stages: Stage[] = [
         no: '15',
         caption: 'Release — and immediately the repeat-deal prompt, where retention lives.',
         render: () => <Released />,
+        deal: { status: 'RELEASED', releasedAt: '2026-08-27T10:41:00.000Z' },
       },
       {
         no: '16',
         caption: 'The certificate — a document a bank or insurer will accept later.',
         render: () => <ReleaseCertificate />,
+        deal: { status: 'RELEASED', releasedAt: '2026-08-27T10:41:00.000Z' },
       },
       {
         no: '17',
         caption: 'Home, populated — the trade-data revenue line visible from day one.',
-        render: () => <Home populated />,
+        render: () => <Home preview="populated" />,
       },
     ],
   },
 ]
 
-/** Freezes a preview so it cannot be clicked or tabbed into from the canvas. */
-function Preview({ children }: { children: ReactNode }) {
+/**
+ * Freezes a preview so it cannot be clicked or tabbed into from the canvas,
+ * and serves it the design's figures rather than letting seventeen screens
+ * each open a request.
+ */
+function Preview({ children, deal }: { children: ReactNode; deal?: Partial<DealDto> }) {
   const ref = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -161,7 +175,7 @@ function Preview({ children }: { children: ReactNode }) {
 
   return (
     <div className="canvas__preview" ref={ref}>
-      {children}
+      <PreviewDealProvider deal={deal}>{children}</PreviewDealProvider>
     </div>
   )
 }
@@ -201,7 +215,7 @@ export function Canvas() {
           <div className="canvas__row">
             {stage.screens.map((screen) => (
               <figure className="canvas__item" key={screen.no} style={{ margin: 0 }}>
-                <Preview>{screen.render()}</Preview>
+                <Preview deal={screen.deal}>{screen.render()}</Preview>
                 <figcaption className="canvas__caption">
                   <span className="canvas__caption-no">{screen.no}</span>
                   <span className="canvas__caption-text">{screen.caption}</span>

@@ -28,7 +28,7 @@ export function registerWebhookRoutes(
   { prisma, deals, env }: { prisma: PrismaClient; deals: DealService; env: Env },
 ): void {
   app.post('/v1/webhooks/wewire', async (request, reply) => {
-    const secret = env.wewire?.webhookSecret
+    const secret = env.webhookSecret
     if (!secret) {
       // Refuse rather than accept unverified callbacks when running on the
       // in-memory provider: an open endpoint here could fund deals for free.

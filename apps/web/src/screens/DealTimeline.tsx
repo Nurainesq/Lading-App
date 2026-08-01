@@ -1,40 +1,131 @@
 import { useNavigate } from 'react-router-dom'
+import type { DealDto } from '@lading/shared'
 import { Content, NavBar, Screen, StatusBar } from '@/components/Screen'
-import { SecondaryButton } from '@/components/Button'
+import { SecondaryButton, PrimaryButton } from '@/components/Button'
 import { Meter } from '@/components/Progress'
 import { Timeline, type TimelineEntry } from '@/components/Timeline'
-import { deal as fixture } from '@/data/deal'
+import { ErrorNote, LoadingNote } from '@/components/Feedback'
+import { useDeal, useDealFigures } from '@/state/DealContext'
 
-const entries: TimelineEntry[] = [
-  { label: 'Escrow funded', meta: fixture.dates.fundedShort, state: 'done' },
-  { label: 'Seller confirmed shipment', meta: fixture.dates.shipmentConfirmed, state: 'done' },
-  {
-    label: 'Vessel at sea',
-    meta: `DAY ${fixture.dayOfWindow} OF ${fixture.windowDays}`,
-    state: 'current',
-  },
-  { label: 'Bill of lading presented', meta: 'AWAITING SELLER', state: 'pending' },
-  { label: 'Funds released', meta: 'ON VERIFICATION', state: 'pending' },
-]
+/** Where each lifecycle stage sits, so the five fixed steps read correctly. */
+const ORDER: Record<DealDto['status'], number> = {
+  DRAFT: 0,
+  AWAITING_ACCEPTANCE: 0,
+  AWAITING_FUNDING: 0,
+  FUNDED: 1,
+  IN_TRANSIT: 2,
+  DOCUMENTS_PRESENTED: 3,
+  DISCREPANCY: 3,
+  RELEASED: 4,
+  REFUNDED: 4,
+  CANCELLED: 4,
+}
+
+function stamp(iso: string | null): string {
+  if (!iso) return '—'
+  return new Date(iso).toISOString().replace('T', ' · ').slice(0, 16).toUpperCase()
+}
+
+function entriesFor(deal: DealDto): TimelineEntry[] {
+  const stage = ORDER[deal.status]
+  const shipped = deal.timeline.find((t) => t.kind === 'SHIPPED')
+  const at = (kind: string) => deal.timeline.find((t) => t.kind === kind)?.occurredAt ?? null
+
+  const state = (index: number): TimelineEntry['state'] =>
+    stage > index ? 'done' : stage === index ? 'current' : 'pending'
+
+  return [
+    {
+      label: 'Escrow funded',
+      meta: deal.fundedAt ? stamp(deal.fundedAt) : 'AWAITING BUYER',
+      state: deal.fundedAt ? 'done' : state(0),
+    },
+    {
+      label: 'Seller confirmed shipment',
+      meta: shipped?.detail ?? (shipped ? stamp(shipped.occurredAt) : 'AWAITING SELLER'),
+      state: shipped ? 'done' : state(1),
+    },
+    {
+      label: 'Vessel at sea',
+      meta: deal.dayOfWindow
+        ? `DAY ${deal.dayOfWindow} OF ${deal.windowDays}`
+        : `${deal.windowDays} DAY WINDOW`,
+      state: state(2),
+    },
+    {
+      label: 'Bill of lading presented',
+      meta: at('DOCUMENTS_PRESENTED') ? stamp(at('DOCUMENTS_PRESENTED')) : 'AWAITING SELLER',
+      state: state(3),
+    },
+    {
+      label: 'Funds released',
+      meta: deal.releasedAt ? stamp(deal.releasedAt) : 'ON VERIFICATION',
+      state: deal.releasedAt ? 'done' : state(4),
+    },
+  ]
+}
+
+/** How the header badge reads for the current status. */
+function badgeFor(deal: DealDto): string {
+  switch (deal.status) {
+    case 'IN_TRANSIT':
+      return `IN TRANSIT · DAY ${deal.dayOfWindow ?? 1}/${deal.windowDays}`
+    case 'AWAITING_ACCEPTANCE':
+      return 'AWAITING ACCEPTANCE'
+    case 'AWAITING_FUNDING':
+      return 'AWAITING FUNDING'
+    case 'DOCUMENTS_PRESENTED':
+      return 'DOCUMENTS PRESENTED'
+    case 'DISCREPANCY':
+      return 'DISCREPANCY OPEN'
+    default:
+      return deal.status.replace(/_/g, ' ')
+  }
+}
 
 /**
- * 11 — The 26 days, where trust normally decays. The FX line quietly proves the
- * product's core claim mid-voyage, without anyone having to ask.
+ * 11 — The 26 days, where trust normally decays. The FX line quietly proves
+ * the product's core claim mid-voyage, without anyone having to ask.
  */
 export function DealTimeline() {
   const navigate = useNavigate()
+  const deal = useDealFigures()
+  const { loading, error, preview } = useDeal()
+
+  const progress = deal.dayOfWindow
+    ? Math.round((deal.dayOfWindow / deal.windowDays) * 100)
+    : 0
+
+  /** The one action that matters at this point in the lifecycle. */
+  const action = (() => {
+    if (preview) return null
+    switch (deal.status) {
+      case 'AWAITING_FUNDING':
+        return { label: 'Fund escrow', to: `/deal/${deal.id}/fund` }
+      case 'DOCUMENTS_PRESENTED':
+        return { label: 'Check the documents', to: `/deal/${deal.id}/verification` }
+      case 'FUNDED':
+      case 'IN_TRANSIT':
+        return { label: 'Present documents', to: `/deal/${deal.id}/present` }
+      case 'RELEASED':
+        return { label: 'Release certificate', to: `/deal/${deal.id}/certificate` }
+      default:
+        return null
+    }
+  })()
 
   return (
-    <Screen label={`Deal ${fixture.reference}`}>
+    <Screen label={`Deal ${deal.reference}`}>
       <StatusBar />
       <NavBar
-        label={fixture.reference}
+        label={deal.reference}
+        onBack={() => navigate('/deals')}
         action={
           <span
             className="mono"
             style={{ fontSize: 12, letterSpacing: '0.12em', color: 'var(--oxide)' }}
           >
-            IN TRANSIT · DAY {fixture.dayOfWindow}/{fixture.windowDays}
+            {badgeFor(deal)}
           </span>
         }
       />
@@ -48,16 +139,19 @@ export function DealTimeline() {
               color: 'var(--fg)',
             }}
           >
-            {fixture.value.currency} {fixture.value.amount}
+            {deal.value.currency} {deal.value.display}
           </span>
           <Meter
-            percent={fixture.voyageProgressPct}
-            from={fixture.dates.departed}
-            to={fixture.dates.arrivalEst}
+            percent={progress}
+            from={deal.route?.split('→')[0]?.trim().toUpperCase() ?? 'ORIGIN'}
+            to={deal.route?.split('→')[1]?.trim().toUpperCase() ?? 'DESTINATION'}
           />
         </div>
 
-        <Timeline entries={entries} />
+        {loading && <LoadingNote>LOADING DEAL…</LoadingNote>}
+        {error && <ErrorNote>{error}</ErrorNote>}
+
+        <Timeline entries={entriesFor(deal)} />
 
         <div
           className="spacer panel"
@@ -74,15 +168,21 @@ export function DealTimeline() {
               className="mono"
               style={{ fontSize: 11, letterSpacing: '0.12em', color: 'var(--fg-dim)' }}
             >
-              {fixture.fx.movementLabel}
+              FX MOVEMENT SINCE FUNDING
             </span>
-            <span style={{ fontSize: 15, color: 'var(--fg)' }}>{fixture.fx.movement}</span>
+            <span style={{ fontSize: 15, color: 'var(--fg)' }}>
+              {deal.rateLockedAt
+                ? 'Rate held — moves cost you nothing'
+                : 'Rate locks when the seller accepts'}
+            </span>
           </div>
         </div>
 
-        <SecondaryButton onClick={() => navigate('/seller/present')}>
-          Message seller
-        </SecondaryButton>
+        {action ? (
+          <PrimaryButton onClick={() => navigate(action.to)}>{action.label}</PrimaryButton>
+        ) : (
+          <SecondaryButton>Message seller</SecondaryButton>
+        )}
       </Content>
     </Screen>
   )

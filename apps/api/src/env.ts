@@ -41,6 +41,13 @@ export type Env = z.infer<typeof schema> & {
     webhookSecret: string
     escrowSubCustomerId: string
   }
+  /**
+   * Set whenever a signing secret is configured, independently of which
+   * provider is running — so callbacks can be exercised against the mock.
+   * Without it the webhook route refuses everything, which is the right
+   * default: an unverified endpoint here could fund deals for free.
+   */
+  webhookSecret?: string
 }
 
 const SANDBOX_BASE_URL = 'https://stage-capi.wewireafrica.com'
@@ -54,6 +61,13 @@ export function loadEnv(source: NodeJS.ProcessEnv = process.env): Env {
   }
 
   const env = parsed.data as Env
+
+  if (env.WEWIRE_WEBHOOK_SECRET) {
+    if (!env.WEWIRE_WEBHOOK_SECRET.startsWith('whsec_')) {
+      throw new Error('WEWIRE_WEBHOOK_SECRET must start with whsec_')
+    }
+    env.webhookSecret = env.WEWIRE_WEBHOOK_SECRET
+  }
 
   if (env.ESCROW_PROVIDER === 'wewire') {
     const missing: string[] = []

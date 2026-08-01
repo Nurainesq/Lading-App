@@ -2,7 +2,7 @@ import { useNavigate } from 'react-router-dom'
 import { Content, Screen, StatusBar, Title } from '@/components/Screen'
 import { PrimaryButton } from '@/components/Button'
 import { Panel, PanelField, Rule } from '@/components/Panel'
-import { deal as fixture } from '@/data/deal'
+import { useDeal, useDealFigures } from '@/state/DealContext'
 
 const guarantees = [
   'Segregated from every other deal',
@@ -13,6 +13,11 @@ const guarantees = [
 /** 08 — The virtual account shown as an instrument: the escrow made tangible. */
 export function EscrowAccount() {
   const navigate = useNavigate()
+  const deal = useDealFigures()
+  const { preview } = useDeal()
+  const account = deal.escrowAccount
+
+  const acceptedAt = deal.timeline.find((t) => t.kind === 'ACCEPTED')?.occurredAt
 
   return (
     <Screen label="Escrow account issued">
@@ -23,11 +28,14 @@ export function EscrowAccount() {
             className="mono"
             style={{ fontSize: 12, letterSpacing: '0.16em', color: 'var(--oxide)' }}
           >
-            SELLER ACCEPTED · {fixture.dates.accepted}
+            SELLER ACCEPTED
+            {acceptedAt
+              ? ` · ${new Date(acceptedAt).toISOString().slice(11, 16)} GMT`
+              : ''}
           </span>
           <Title size={36}>Escrow account issued for this deal</Title>
           <p className="body">
-            One account, {fixture.reference} only. Nothing else is ever paid into it.
+            One account, {deal.reference} only. Nothing else is ever paid into it.
           </p>
         </div>
 
@@ -35,7 +43,7 @@ export function EscrowAccount() {
           <div className="panel__body">
             <PanelField label="ACCOUNT NAME">
               <span style={{ fontSize: 17, color: 'var(--fg)' }}>
-                {fixture.escrowAccount.name}
+                {account?.accountName ?? `LADING ESCROW / ${deal.reference}`}
               </span>
             </PanelField>
             <Rule />
@@ -44,13 +52,14 @@ export function EscrowAccount() {
                 className="mono"
                 style={{ fontSize: 22, letterSpacing: '0.08em', color: 'var(--fg)' }}
               >
-                {fixture.escrowAccount.number}
+                {account?.accountNumber ?? 'Being issued…'}
               </span>
             </PanelField>
             <Rule />
             <PanelField label="HELD BY">
               <span style={{ fontSize: 15, lineHeight: 1.45, color: 'var(--fg-muted)' }}>
-                {fixture.escrowAccount.heldBy}
+                {account?.heldBy ??
+                  'WeWire — licensed, safeguarded. Lading has release rights only, never custody.'}
               </span>
             </PanelField>
           </div>
@@ -66,8 +75,12 @@ export function EscrowAccount() {
         </div>
 
         <div className="spacer">
-          <PrimaryButton onClick={() => navigate('/deal/fund')}>
-            Fund escrow — GHS 344,162
+          <PrimaryButton
+            onClick={() => !preview && navigate(`/deal/${deal.id}/fund`)}
+          >
+            {deal.totalDue
+              ? `Fund escrow — ${deal.totalDue.currency} ${deal.totalDue.display.replace('.00', '')}`
+              : 'Fund escrow'}
           </PrimaryButton>
         </div>
       </Content>

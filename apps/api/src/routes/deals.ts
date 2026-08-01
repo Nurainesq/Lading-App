@@ -33,6 +33,20 @@ export function registerDealRoutes(
     return reply.status(201).send(await deals.serialise(deal.id))
   })
 
+  /** Indicative conversion for the review screen. Creates nothing. */
+  app.post('/v1/quotes', async (request) => {
+    await session(request)
+    const input = z
+      .object({
+        value: z.string().trim(),
+        currency: z.enum(['USD', 'EUR', 'GBP', 'GHS', 'NGN', 'AED', 'CAD']),
+        fundingCurrency: z.enum(['USD', 'EUR', 'GBP', 'GHS', 'NGN', 'AED', 'CAD']),
+        settlementCurrency: z.enum(['USD', 'EUR', 'GBP', 'GHS', 'NGN', 'AED', 'CAD']),
+      })
+      .parse(request.body)
+    return deals.quote(input)
+  })
+
   app.get('/v1/deals/:id', async (request) => {
     const { businessId } = await session(request)
     const { id } = idParam.parse(request.params)

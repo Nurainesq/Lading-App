@@ -40,12 +40,7 @@ describe('the full deal journey', { skip: DATABASE_URL ? false : 'DATABASE_URL n
 
     // The webhook route needs a secret even on the mock provider; without one
     // it refuses deliveries outright, which is the behaviour we want in prod.
-    env.wewire = {
-      apiKey: 'sk_test_unused',
-      baseUrl: 'https://stage-capi.wewireafrica.com',
-      webhookSecret: WEBHOOK_SECRET,
-      escrowSubCustomerId: 'sub_test',
-    }
+    env.webhookSecret = WEBHOOK_SECRET
 
     provider = new MockEscrowProvider()
     app = await buildApp({ env, prisma, provider })

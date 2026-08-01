@@ -156,6 +156,53 @@ export class DealService {
     })
   }
 
+  /**
+   * Indicative figures for the review screen, before anything is created.
+   *
+   * Explicitly not a lock: the rate is only held once the counterparty
+   * accepts, so this is labelled as indicative rather than presented as the
+   * settled number.
+   */
+  async quote(input: {
+    value: string
+    currency: Currency
+    fundingCurrency: Currency
+    settlementCurrency: Currency
+  }) {
+    const value = parseMoney(input.currency, input.value)
+    const fee = feeFor(value)
+
+    const fundingQuote = await this.#provider.getRate({
+      from: value.currency,
+      to: input.fundingCurrency,
+    })
+    const settlementQuote = await this.#provider.getRate({
+      from: value.currency,
+      to: input.settlementCurrency,
+    })
+
+    const asRate = (q: typeof fundingQuote, to: Currency): LockedRate => ({
+      from: value.currency,
+      to,
+      scaledRate: q.scaledRate,
+      scale: q.scale,
+      lockedAt: new Date().toISOString(),
+    })
+
+    const fundedValue = convert(value, asRate(fundingQuote, input.fundingCurrency))
+    const fundedFee = convert(fee, asRate(fundingQuote, input.fundingCurrency))
+    const settlement = convert(value, asRate(settlementQuote, input.settlementCurrency))
+
+    return {
+      value: dto(value)!,
+      fee: dto(fundedFee)!,
+      payIn: dto(money(fundedValue.currency, fundedValue.minor))!,
+      totalDue: dto(money(fundedValue.currency, fundedValue.minor + fundedFee.minor))!,
+      settlementAmount: dto(settlement)!,
+      indicative: true as const,
+    }
+  }
+
   /** Sends to the counterparty. They need no account — only the link. */
   async send(dealId: string, businessId: string) {
     const deal = await this.#load(dealId, businessId)
