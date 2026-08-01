@@ -39,6 +39,16 @@ export class ApiError extends Error {
   }
 }
 
+/**
+ * Where the API lives.
+ *
+ * On the web this stays a relative `/api`, which the dev server and the
+ * production reverse proxy both forward — one origin, so no CORS preflight.
+ * A native build has no origin to be relative to, so it must be given an
+ * absolute URL at build time via VITE_API_BASE_URL.
+ */
+export const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? '/api').replace(/\/+$/, '')
+
 const TOKEN_KEY = 'lading.session'
 
 export function readToken(): string | null {
@@ -76,7 +86,7 @@ async function request<T>(
 
   let response: Response
   try {
-    response = await fetch(`/api${path}`, { ...rest, headers: merged })
+    response = await fetch(`${API_BASE_URL}${path}`, { ...rest, headers: merged })
   } catch {
     // A dropped connection must not read as "no deals" — it is an error.
     throw new ApiError(0, 'OFFLINE', 'Cannot reach Lading. Check your connection.')
@@ -196,7 +206,7 @@ export const api = {
     const token = readToken()
     let response: Response
     try {
-      response = await fetch(`/api/v1/deals/${dealId}/documents`, {
+      response = await fetch(`${API_BASE_URL}/v1/deals/${dealId}/documents`, {
         method: 'POST',
         headers: token ? { authorization: `Bearer ${token}` } : {},
         body: form,
