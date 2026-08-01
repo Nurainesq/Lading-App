@@ -12,7 +12,7 @@ concurrency:
 
 jobs:
   build:
-    name: Typecheck and build
+    name: Typecheck, test and build
     runs-on: ubuntu-latest
 
     steps:
@@ -26,10 +26,18 @@ jobs:
       - name: Install
         run: npm ci
 
-      # Run types separately from the build so a type error reports as a type
-      # error, rather than as a failed build step.
+      # The shared package is compiled first — both apps typecheck against its
+      # emitted declarations, not its source.
+      - name: Build shared
+        run: npm run build -w @lading/shared
+
       - name: Typecheck
-        run: npm run typecheck
+        run: npm run typecheck --workspaces --if-present
+
+      # Money arithmetic, the deal state machine, and webhook signature
+      # verification. These are the parts that must not be wrong.
+      - name: Test
+        run: npm test
 
       - name: Build
         run: npm run build

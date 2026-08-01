@@ -5,3 +5,11 @@ dist-ssr
 .DS_Store
 .vite
 *.tsbuildinfo
+
+# Secrets never belong in the repository — see .env.example for the shape.
+.env
+.env.*
+!.env.example
+
+# Prisma
+apps/api/prisma/*.db
