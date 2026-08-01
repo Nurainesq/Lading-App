@@ -140,13 +140,29 @@ export type DealDto = z.infer<typeof dealSchema>
 
 /* ------------------------------------------------------------- actions */
 
-export const fundDealSchema = z.object({
-  /** Ghana corridor: a bank transfer or a mobile money wallet. */
-  source: z.enum(['BANK', 'MOBILE_MONEY']),
-  /** Required for mobile money — the wallet the debit is taken from. */
-  msisdn: z.string().trim().optional(),
-  network: z.enum(['MTN', 'VODAFONE', 'AIRTELTIGO']).optional(),
-})
+/** Ghana corridor codes, as WeWire defines them. */
+export const GHANA_BANKS = ['GCB', 'ECO', 'GTB'] as const
+export const GHANA_NETWORKS = ['MTN', 'VOD', 'ATM'] as const
+
+/**
+ * Funding source. A discriminated union because the two channels need
+ * genuinely different fields — a bank code is not a mobile network, and
+ * accepting either for both is how the wrong code reaches the provider.
+ */
+export const fundDealSchema = z.discriminatedUnion('source', [
+  z.object({
+    source: z.literal('BANK'),
+    bankCode: z.enum(GHANA_BANKS),
+    accountNumber: z.string().trim().regex(/^\d{6,20}$/, 'Digits only'),
+  }),
+  z.object({
+    source: z.literal('MOBILE_MONEY'),
+    network: z.enum(GHANA_NETWORKS),
+    /** Ghanaian mobile money numbers are ten digits. */
+    msisdn: z.string().trim().regex(/^\d{10}$/, 'A ten-digit mobile money number'),
+  }),
+])
+export type FundDealInput = z.infer<typeof fundDealSchema>
 
 export const presentDocumentsSchema = z.object({
   documentIds: z.array(z.string()).min(1, 'Present at least one document'),
