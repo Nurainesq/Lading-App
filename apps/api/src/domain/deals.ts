@@ -88,17 +88,20 @@ export interface DealServiceDeps {
   prisma: PrismaClient
   provider: EscrowProvider
   escrowSubCustomerId: string
+  webOrigin: string
 }
 
 export class DealService {
   readonly #prisma: PrismaClient
   readonly #provider: EscrowProvider
   readonly #escrowSubCustomerId: string
+  readonly #webOrigin: string
 
-  constructor({ prisma, provider, escrowSubCustomerId }: DealServiceDeps) {
+  constructor({ prisma, provider, escrowSubCustomerId, webOrigin }: DealServiceDeps) {
     this.#prisma = prisma
     this.#provider = provider
     this.#escrowSubCustomerId = escrowSubCustomerId
+    this.#webOrigin = webOrigin.replace(/\/+$/, '')
   }
 
   async create(input: {
@@ -629,7 +632,7 @@ export class DealService {
 
   async get(dealId: string, businessId: string) {
     await this.#load(dealId, businessId)
-    return this.serialise(dealId)
+    return this.serialise(dealId, businessId)
   }
 
   async list(businessId: string) {
@@ -639,11 +642,18 @@ export class DealService {
       },
       orderBy: { createdAt: 'desc' },
     })
-    return Promise.all(deals.map((deal) => this.serialise(deal.id)))
+    return Promise.all(deals.map((deal) => this.serialise(deal.id, businessId)))
   }
 
-  /** Shapes a deal for the wire, matching the shared `dealSchema`. */
-  async serialise(dealId: string) {
+  /**
+   * Shapes a deal for the wire, matching the shared `dealSchema`.
+   *
+   * `viewerBusinessId` is null for the invite view, where the seller has no
+   * account yet. Names are resolved against the viewer rather than against
+   * whoever created the deal — otherwise a seller reading the invite is told
+   * "You" about the buyer.
+   */
+  async serialise(dealId: string, viewerBusinessId: string | null = null) {
     const deal = await this.#prisma.deal.findUniqueOrThrow({
       where: { id: dealId },
       include: {
@@ -652,6 +662,8 @@ export class DealService {
         checks: true,
         timeline: { orderBy: { occurredAt: 'asc' } },
         rateLock: true,
+        buyerBusiness: true,
+        sellerBusiness: true,
       },
     })
 
@@ -666,8 +678,21 @@ export class DealService {
         )
       : null
 
-    const buyerName = deal.creatorSide === 'BUYING' ? 'You' : deal.counterpartyName
-    const sellerName = deal.creatorSide === 'SELLING' ? 'You' : deal.counterpartyName
+    // Whoever is looking is "You"; the other side is named. With no viewer
+    // — the invite link — both sides are named outright.
+    const nameFor = (
+      side: 'BUYING' | 'SELLING',
+      business: { id: string; name: string | null } | null,
+    ): string => {
+      if (viewerBusinessId && business?.id === viewerBusinessId) return 'You'
+      if (business?.name) return business.name
+      // The counterparty has not signed up yet, so the typed name is all
+      // there is; the creator's own side falls back to a neutral label.
+      return deal.creatorSide === side ? 'The other party' : deal.counterpartyName
+    }
+
+    const buyerName = nameFor('BUYING', deal.buyerBusiness)
+    const sellerName = nameFor('SELLING', deal.sellerBusiness)
 
     return {
       id: deal.id,
@@ -725,6 +750,14 @@ export class DealService {
         detail: t.detail,
         occurredAt: t.occurredAt.toISOString(),
       })),
+
+      // The buyer has to be able to forward the link — "they'll get a link"
+      // is the whole reason the counterparty needs no account. Only exposed
+      // while it is still awaiting acceptance, and it is single-use.
+      inviteUrl:
+        deal.status === 'AWAITING_ACCEPTANCE' && deal.inviteToken
+          ? `${this.#webOrigin}/invite/${deal.inviteToken}`
+          : null,
 
       createdAt: deal.createdAt.toISOString(),
       fundedAt: deal.fundedAt?.toISOString() ?? null,

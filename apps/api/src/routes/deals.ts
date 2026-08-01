@@ -30,7 +30,7 @@ export function registerDealRoutes(
     const { businessId } = await session(request)
     const input = createDealSchema.parse(request.body)
     const deal = await deals.create({ businessId, ...input })
-    return reply.status(201).send(await deals.serialise(deal.id))
+    return reply.status(201).send(await deals.serialise(deal.id, businessId))
   })
 
   /** Indicative conversion for the review screen. Creates nothing. */
@@ -58,7 +58,7 @@ export function registerDealRoutes(
     const { id } = idParam.parse(request.params)
     const deal = await deals.send(id, businessId)
     return {
-      deal: await deals.serialise(deal.id),
+      deal: await deals.serialise(deal.id, businessId),
       // The counterparty needs no account — only this link.
       inviteUrl: `${env.WEB_ORIGIN}/invite/${deal.inviteToken}`,
     }
@@ -71,7 +71,8 @@ export function registerDealRoutes(
   app.post('/v1/invites/:token/accept', async (request) => {
     const { token } = tokenParam.parse(request.params)
     const deal = await deals.accept(token)
-    return deals.serialise(deal.id)
+    // No viewer: the seller has no account, so both sides are named outright.
+    return deals.serialise(deal.id, null)
   })
 
   app.post('/v1/deals/:id/fund', async (request) => {
@@ -86,7 +87,7 @@ export function registerDealRoutes(
       status: transfer.status,
       transactionId: transfer.id,
       totalDue: { currency: totalDue.currency, minor: totalDue.minor },
-      deal: await deals.serialise(id),
+      deal: await deals.serialise(id, businessId),
     }
   })
 
@@ -95,7 +96,7 @@ export function registerDealRoutes(
     const { id } = idParam.parse(request.params)
     const { detail } = z.object({ detail: z.string().trim().min(1) }).parse(request.body)
     const deal = await deals.confirmShipment(id, businessId, detail)
-    return deals.serialise(deal.id)
+    return deals.serialise(deal.id, businessId)
   })
 
   app.post('/v1/deals/:id/documents/present', async (request) => {
@@ -103,14 +104,14 @@ export function registerDealRoutes(
     const { id } = idParam.parse(request.params)
     const { documentIds } = presentDocumentsSchema.parse(request.body)
     const deal = await deals.present(id, businessId, documentIds)
-    return deals.serialise(deal.id)
+    return deals.serialise(deal.id, businessId)
   })
 
   app.post('/v1/deals/:id/release', async (request) => {
     const { businessId } = await session(request)
     const { id } = idParam.parse(request.params)
     const deal = await deals.release(id, businessId)
-    return deals.serialise(deal.id)
+    return deals.serialise(deal.id, businessId)
   })
 
   app.post('/v1/deals/:id/discrepancy', async (request) => {
@@ -118,7 +119,7 @@ export function registerDealRoutes(
     const { id } = idParam.parse(request.params)
     const input = raiseDiscrepancySchema.parse(request.body)
     const deal = await deals.raiseDiscrepancy(id, businessId, input)
-    return deals.serialise(deal.id)
+    return deals.serialise(deal.id, businessId)
   })
 
   /**
@@ -130,6 +131,6 @@ export function registerDealRoutes(
     const { id } = idParam.parse(request.params)
     const input = resolveDiscrepancySchema.parse(request.body)
     const deal = await deals.resolveDiscrepancy(id, businessId, input)
-    return deals.serialise(deal.id)
+    return deals.serialise(deal.id, businessId)
   })
 }

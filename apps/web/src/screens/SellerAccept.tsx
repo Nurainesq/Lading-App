@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useParams } from 'react-router-dom'
 import type { DealDto } from '@lading/shared'
 import { Content, Screen, SellerBar, StatusBar, Title } from '@/components/Screen'
 import { Actions, PrimaryButton, SecondaryButton } from '@/components/Button'
@@ -7,6 +7,7 @@ import { Panel, PanelRow } from '@/components/Panel'
 import { BoxedNote } from '@/components/Note'
 import { ErrorNote } from '@/components/Feedback'
 import { Logo } from '@/components/Logo'
+import { Stamp } from '@/components/Stamp'
 import { api } from '@/api/client'
 import { previewDeal } from '@/api/preview'
 
@@ -14,13 +15,15 @@ import { previewDeal } from '@/api/preview'
  * 07 — The seller's first screen ever. Paper ground, arrives by link, no
  * account. It has one job: prove he is not being asked to ship on trust.
  *
- * Reached at /invite/:token, and deliberately unauthenticated — the
- * single-use token is the authorisation.
+ * Reached at /invite/:token and deliberately unauthenticated — the single-use
+ * token is the authorisation. Which is also why accepting does not hand the
+ * seller on to any other screen: he has no session, so every authenticated
+ * route would fail. Everything he needs is in the accept response.
  */
 export function SellerAccept({ preview }: { preview?: boolean }) {
-  const navigate = useNavigate()
   const { token } = useParams()
   const [deal, setDeal] = useState<DealDto | null>(preview ? previewDeal() : null)
+  const [accepted, setAccepted] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
 
@@ -29,9 +32,8 @@ export function SellerAccept({ preview }: { preview?: boolean }) {
     setBusy(true)
     setError(null)
     try {
-      const accepted = await api.acceptInvite(token)
-      setDeal(accepted)
-      navigate(`/deal/${accepted.id}/account`)
+      setDeal(await api.acceptInvite(token))
+      setAccepted(true)
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'This invitation is not valid')
     } finally {
@@ -40,6 +42,36 @@ export function SellerAccept({ preview }: { preview?: boolean }) {
   }
 
   const view = deal ?? previewDeal()
+
+  if (accepted && deal) {
+    return (
+      <Screen ground="paper" label="Seller — terms accepted">
+        <StatusBar />
+        <SellerBar location="DEIRA" />
+        <Content center gap={24}>
+          <Stamp>ACCEPTED</Stamp>
+          <Title size={32}>
+            You'll be paid {deal.settlementAmount?.currency}{' '}
+            {deal.settlementAmount?.display.replace('.00', '')} on a verified bill of
+            lading.
+          </Title>
+          <p className="body">
+            {deal.buyerName} funds the escrow next. You'll get a message the moment the
+            money is committed — do not ship before then.
+          </p>
+          <Panel>
+            <PanelRow label="Reference" mono value={deal.reference} />
+            <PanelRow label="Goods" value={deal.goods} />
+            <PanelRow label="Released on" value="Verified B/L" />
+          </Panel>
+          <BoxedNote label="WHAT HAPPENS NOW">
+            Nothing is owed by you yet. When the buyer funds, the money is locked to this
+            deal — he cannot withdraw it and you cannot be paid less.
+          </BoxedNote>
+        </Content>
+      </Screen>
+    )
+  }
 
   return (
     <Screen ground="paper" label="Seller — accept terms">

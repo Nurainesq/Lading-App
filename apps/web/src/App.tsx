@@ -3,6 +3,7 @@ import { Navigate, Route, Routes, useLocation, useParams } from 'react-router-do
 import { SessionProvider } from '@/state/SessionContext'
 import { DraftProvider } from '@/state/DraftContext'
 import { DealProvider } from '@/state/DealContext'
+import { DealGate } from '@/state/DealGate'
 import { Canvas } from '@/canvas/Canvas'
 import { SignIn } from '@/screens/SignIn'
 import { VerifyCode } from '@/screens/VerifyCode'
@@ -25,7 +26,11 @@ import { ReleaseCertificate } from '@/screens/ReleaseCertificate'
 /** Loads the deal named in the URL and puts it in scope for the screen. */
 function WithDeal({ children }: { children: ReactNode }) {
   const { id } = useParams()
-  return <DealProvider dealId={id ?? null}>{children}</DealProvider>
+  return (
+    <DealProvider dealId={id ?? null}>
+      <DealGate>{children}</DealGate>
+    </DealProvider>
+  )
 }
 
 /** The device sits on the canvas ground; on a phone it fills the viewport. */

@@ -124,6 +124,10 @@ export function previewDeal(overrides: Partial<DealDto> = {}): DealDto {
       },
     ],
 
+    // Only a deal still awaiting acceptance carries a link, and the canvas
+    // shows the journey past that point.
+    inviteUrl: null,
+
     createdAt: '2026-08-01T12:00:00.000Z',
     fundedAt: '2026-08-01T14:41:00.000Z',
     releasedAt: null,

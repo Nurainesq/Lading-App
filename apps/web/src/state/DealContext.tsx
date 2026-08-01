@@ -125,11 +125,18 @@ export function useDeal(): DealStore {
 }
 
 /**
- * The deal, or the design's stand-in while one is loading. Screens that only
- * render figures use this so they never have to branch on loading state, and
- * so the layout never collapses mid-fetch.
+ * The deal being shown.
+ *
+ * Falls back to the design's figures ONLY in preview mode. In a live screen a
+ * missing deal is an error, never a stand-in: quietly rendering LD-4471's
+ * escrow account because a fetch failed would show a trader an account number
+ * that does not exist and invite them to pay into it. `DealGate` guarantees a
+ * deal is present before a live screen renders, so this cannot be reached
+ * empty.
  */
 export function useDealFigures(): DealDto {
-  const { deal } = useDeal()
-  return deal ?? previewDeal()
+  const { deal, preview } = useDeal()
+  if (deal) return deal
+  if (preview) return previewDeal()
+  throw new Error('useDealFigures used outside a loaded deal — wrap the route in DealGate')
 }

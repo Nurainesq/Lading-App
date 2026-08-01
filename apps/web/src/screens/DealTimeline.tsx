@@ -151,6 +151,42 @@ export function DealTimeline() {
         {loading && <LoadingNote>LOADING DEAL…</LoadingNote>}
         {error && <ErrorNote>{error}</ErrorNote>}
 
+        {/* The counterparty needs no account, only this link — so the buyer
+            has to be able to get at it and send it on. */}
+        {deal.inviteUrl && (
+          <div className="panel" style={{ padding: '16px 18px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <span
+                className="mono"
+                style={{ fontSize: 11, letterSpacing: '0.12em', color: 'var(--fg-dim)' }}
+              >
+                SEND THIS TO {deal.sellerName.toUpperCase()}
+              </span>
+              <span
+                className="mono"
+                data-testid="invite-url"
+                style={{ fontSize: 12, color: 'var(--slate-light)', wordBreak: 'break-all' }}
+              >
+                {deal.inviteUrl}
+              </span>
+              <button
+                type="button"
+                onClick={() => void navigator.clipboard?.writeText(deal.inviteUrl!)}
+                className="mono"
+                style={{
+                  alignSelf: 'flex-start',
+                  fontSize: 12,
+                  letterSpacing: '0.12em',
+                  color: 'var(--oxide)',
+                  padding: '10px 0',
+                }}
+              >
+                COPY LINK
+              </button>
+            </div>
+          </div>
+        )}
+
         <Timeline entries={entriesFor(deal)} />
 
         <div

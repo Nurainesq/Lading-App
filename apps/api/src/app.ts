@@ -106,6 +106,7 @@ export async function buildApp({
     prisma,
     provider,
     escrowSubCustomerId: env.wewire?.escrowSubCustomerId ?? 'mock-subcustomer',
+    webOrigin: env.WEB_ORIGIN,
   })
 
   app.get('/health', async () => ({

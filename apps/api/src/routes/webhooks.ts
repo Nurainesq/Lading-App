@@ -66,8 +66,9 @@ export function registerWebhookRoutes(
       return reply.status(200).send({ status: 'duplicate' })
     }
 
+    let applied = false
     try {
-      await handle(envelope.eventType, envelope.data as CollectionData, deals)
+      applied = await handle(envelope.eventType, envelope.data as CollectionData, deals)
       await prisma.webhookEvent.updateMany({
         where: { provider: 'wewire', externalId: deliveryId },
         data: { processedAt: new Date() },
@@ -81,7 +82,9 @@ export function registerWebhookRoutes(
       throw error
     }
 
-    return reply.status(200).send({ status: 'ok' })
+    // Reporting whether the event changed anything makes a delivery that
+    // named an unknown deal visibly a no-op rather than a silent success.
+    return reply.status(200).send({ status: 'ok', applied })
   })
 }
 
@@ -89,19 +92,19 @@ async function handle(
   eventType: string,
   data: CollectionData,
   deals: DealService,
-): Promise<void> {
+): Promise<boolean> {
   switch (eventType) {
     case 'collection.completed':
     case 'transaction.pay_in': {
       const reference = data.reference
       const currency = data.currency as Currency | undefined
-      if (!reference || !currency || data.amount === undefined) return
-      await deals.markFunded({
+      if (!reference || !currency || data.amount === undefined) return false
+      const result = await deals.markFunded({
         reference,
         providerTransactionId: data.id ?? data.transactionId ?? reference,
         amount: parseMoney(currency, String(data.amount)),
       })
-      return
+      return result.applied
     }
 
     // Failures and disbursement updates are recorded by the WebhookEvent row
@@ -111,9 +114,9 @@ async function handle(
     case 'disbursement.failed':
     case 'virtual_account.status_updated':
     case 'subcustomer.kyc_status_updated':
-      return
+      return false
 
     default:
-      return
+      return false
   }
 }

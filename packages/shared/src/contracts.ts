@@ -132,6 +132,9 @@ export const dealSchema = z.object({
   checks: z.array(documentCheckSchema),
   timeline: z.array(timelineEntrySchema),
 
+  /** Present only while awaiting acceptance, so the buyer can forward it. */
+  inviteUrl: z.string().nullable(),
+
   createdAt: z.string(),
   fundedAt: z.string().nullable(),
   releasedAt: z.string().nullable(),
