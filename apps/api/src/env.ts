@@ -29,8 +29,22 @@ const schema = z.object({
   /** Lading's own sub-customer, which holds the per-deal escrow accounts. */
   WEWIRE_ESCROW_SUBCUSTOMER_ID: z.string().optional(),
 
-  /** Ghana sandbox has fixed test numbers; keep OTP delivery off there. */
-  OTP_DELIVERY: z.enum(['log', 'sms']).default('log'),
+  /** `log` prints the code; `twilio` sends it for real. */
+  OTP_DELIVERY: z.enum(['log', 'twilio']).default('log'),
+  TWILIO_ACCOUNT_SID: z.string().optional(),
+  TWILIO_AUTH_TOKEN: z.string().optional(),
+  /** A Twilio number, or a Messaging Service SID (starts with MG). */
+  TWILIO_FROM: z.string().optional(),
+
+  /** `disk` keeps documents on the local filesystem; `s3` uses object storage. */
+  STORAGE_DRIVER: z.enum(['disk', 's3']).default('disk'),
+  STORAGE_DISK_ROOT: z.string().default('./.storage'),
+  S3_BUCKET: z.string().optional(),
+  S3_REGION: z.string().default('us-east-1'),
+  /** Set for an S3-compatible endpoint such as R2, MinIO or Spaces. */
+  S3_ENDPOINT: z.string().url().optional(),
+  S3_ACCESS_KEY_ID: z.string().optional(),
+  S3_SECRET_ACCESS_KEY: z.string().optional(),
 })
 
 export type Env = z.infer<typeof schema> & {
@@ -61,6 +75,31 @@ export function loadEnv(source: NodeJS.ProcessEnv = process.env): Env {
   }
 
   const env = parsed.data as Env
+
+  if (env.OTP_DELIVERY === 'twilio') {
+    const missing: string[] = []
+    if (!env.TWILIO_ACCOUNT_SID) missing.push('TWILIO_ACCOUNT_SID')
+    if (!env.TWILIO_AUTH_TOKEN) missing.push('TWILIO_AUTH_TOKEN')
+    if (!env.TWILIO_FROM) missing.push('TWILIO_FROM')
+    if (missing.length > 0) {
+      throw new Error(
+        `OTP_DELIVERY=twilio requires: ${missing.join(', ')}. ` +
+          'Find them in the Twilio console under Account Info.',
+      )
+    }
+  }
+
+  if (env.STORAGE_DRIVER === 's3' && !env.S3_BUCKET) {
+    throw new Error('STORAGE_DRIVER=s3 requires S3_BUCKET')
+  }
+
+  // Printing sign-in codes to a log is a development affordance only.
+  if (env.NODE_ENV === 'production' && env.OTP_DELIVERY === 'log') {
+    throw new Error('OTP_DELIVERY=log cannot be used in production')
+  }
+  if (env.NODE_ENV === 'production' && env.STORAGE_DRIVER === 'disk') {
+    throw new Error('STORAGE_DRIVER=disk cannot be used in production')
+  }
 
   if (env.WEWIRE_WEBHOOK_SECRET) {
     if (!env.WEWIRE_WEBHOOK_SECRET.startsWith('whsec_')) {

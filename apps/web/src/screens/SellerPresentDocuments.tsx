@@ -1,10 +1,13 @@
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Content, Screen, SellerBar, StatusBar, Title } from '@/components/Screen'
 import { PrimaryButton } from '@/components/Button'
-import { DocAction, DocStatus, DocumentRow } from '@/components/Document'
+import { DocStatus, DocumentRow } from '@/components/Document'
+import { UploadRow } from '@/components/UploadRow'
 import { Note } from '@/components/Note'
 import { ErrorNote } from '@/components/Feedback'
 import { api } from '@/api/client'
+import { formatBytes } from '@/api/upload'
 import { useDeal, useDealFigures } from '@/state/DealContext'
 
 const KIND_LABEL: Record<string, string> = {
@@ -13,17 +16,34 @@ const KIND_LABEL: Record<string, string> = {
   PACKING_LIST: 'Packing list',
 }
 
-function sizeOf(bytes: number): string {
-  return bytes >= 1_000_000
-    ? `${(bytes / 1_048_576).toFixed(1)} MB`
-    : `${Math.round(bytes / 1024)} KB`
-}
+/** What this deal expects, in the order a trader assembles them. */
+const EXPECTED = [
+  { kind: 'BILL_OF_LADING', label: 'Bill of lading', hint: 'REQUIRED FOR RELEASE' },
+  { kind: 'COMMERCIAL_INVOICE', label: 'Commercial invoice', hint: 'REQUIRED FOR RELEASE' },
+  { kind: 'PACKING_LIST', label: 'Packing list', hint: 'OPTIONAL FOR THIS DEAL' },
+] as const
 
 /** 12 — The document layer, in the language of trade. */
 export function SellerPresentDocuments() {
   const navigate = useNavigate()
   const deal = useDealFigures()
-  const { run, busy, error, preview } = useDeal()
+  const { run, busy, error, preview, refresh } = useDeal()
+  const [uploading, setUploading] = useState<string | null>(null)
+  const [uploadError, setUploadError] = useState<string | null>(null)
+
+  const upload = async (kind: string, file: File) => {
+    if (preview) return
+    setUploading(kind)
+    setUploadError(null)
+    try {
+      await api.uploadDocument(deal.id, file, kind)
+      await refresh()
+    } catch (cause) {
+      setUploadError(cause instanceof Error ? cause.message : 'That document was refused')
+    } finally {
+      setUploading(null)
+    }
+  }
 
   const present = () => {
     if (preview || deal.documents.length === 0) return
@@ -37,7 +57,7 @@ export function SellerPresentDocuments() {
     })
   }
 
-  const hasPackingList = deal.documents.some((d) => d.kind === 'PACKING_LIST')
+  const hasBillOfLading = deal.documents.some((d) => d.kind === 'BILL_OF_LADING')
 
   return (
     <Screen ground="paper" label="Seller — present documents">
@@ -49,28 +69,32 @@ export function SellerPresentDocuments() {
           Release is automatic once these check out against the agreed terms.
         </p>
 
-        {error && <ErrorNote>{error}</ErrorNote>}
+        {(error || uploadError) && <ErrorNote>{uploadError ?? error!}</ErrorNote>}
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          {deal.documents.map((document, index) => (
-            <DocumentRow
-              key={document.id}
-              name={KIND_LABEL[document.kind] ?? document.filename}
-              meta={`${document.filename} · ${sizeOf(document.sizeBytes)}`}
-              state={index === 0 ? 'strong' : 'done'}
-              action={<DocStatus>✓ ADDED</DocStatus>}
-            />
-          ))}
-
-          {!hasPackingList && (
-            <DocumentRow
-              name="Packing list"
-              meta="OPTIONAL FOR THIS DEAL"
-              state="empty"
-              roomy
-              action={<DocAction>ADD</DocAction>}
-            />
-          )}
+          {EXPECTED.map((slot) => {
+            const supplied = deal.documents.find((d) => d.kind === slot.kind)
+            if (supplied) {
+              return (
+                <DocumentRow
+                  key={slot.kind}
+                  name={KIND_LABEL[supplied.kind] ?? supplied.filename}
+                  meta={`${supplied.filename.toUpperCase()} · ${formatBytes(supplied.sizeBytes)}`}
+                  state={slot.kind === 'BILL_OF_LADING' ? 'strong' : 'done'}
+                  action={<DocStatus>✓ ADDED</DocStatus>}
+                />
+              )
+            }
+            return (
+              <UploadRow
+                key={slot.kind}
+                name={slot.label}
+                hint={slot.hint}
+                busy={uploading === slot.kind}
+                onFile={(file) => upload(slot.kind, file)}
+              />
+            )
+          })}
         </div>
 
         <Note>
@@ -80,7 +104,11 @@ export function SellerPresentDocuments() {
         </Note>
 
         <div className="spacer">
-          <PrimaryButton onClick={present} disabled={busy || deal.documents.length === 0}>
+          <PrimaryButton
+            onClick={present}
+            // The bill of lading is what releases the money on these terms.
+            disabled={busy || !hasBillOfLading}
+          >
             {busy ? 'Presenting…' : 'Present for verification'}
           </PrimaryButton>
         </div>

@@ -180,6 +180,48 @@ export const api = {
     })
   },
 
+  /**
+   * Uploads a trade document. Multipart, so the browser sets its own
+   * boundary — the content-type header must not be set by hand here.
+   */
+  async uploadDocument(
+    dealId: string,
+    file: File,
+    kind: string,
+  ): Promise<{ id: string; filename: string; sizeBytes: number; sha256: string }> {
+    const form = new FormData()
+    form.append('kind', kind)
+    form.append('file', file, file.name)
+
+    const token = readToken()
+    let response: Response
+    try {
+      response = await fetch(`/api/v1/deals/${dealId}/documents`, {
+        method: 'POST',
+        headers: token ? { authorization: `Bearer ${token}` } : {},
+        body: form,
+      })
+    } catch {
+      throw new ApiError(0, 'OFFLINE', 'Cannot reach Lading. Check your connection.')
+    }
+
+    const text = await response.text()
+    const parsed = text ? (JSON.parse(text) as Record<string, unknown>) : {}
+    if (!response.ok) {
+      const error = parsed.error as { code?: string; message?: string } | undefined
+      throw new ApiError(
+        response.status,
+        error?.code ?? `HTTP_${response.status}`,
+        error?.message ?? 'That document could not be attached',
+      )
+    }
+    return parsed as never
+  },
+
+  deleteDocument(id: string): Promise<void> {
+    return request(`/v1/documents/${id}`, { method: 'DELETE' })
+  },
+
   presentDocuments(id: string, documentIds: string[]): Promise<DealDto> {
     return request(`/v1/deals/${id}/documents/present`, {
       method: 'POST',

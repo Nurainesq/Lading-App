@@ -4,6 +4,7 @@ import { requestOtpSchema, verifyOtpSchema } from '@lading/shared'
 import { AppError } from '../http/errors.ts'
 import { issueSession } from '../http/session.ts'
 import type { PrismaClient } from '@prisma/client'
+import { SmsError, type SmsSender } from '../sms/sender.ts'
 import type { Env } from '../env.ts'
 
 /**
@@ -29,7 +30,7 @@ function constantTimeEquals(a: string, b: string): boolean {
 
 export function registerAuthRoutes(
   app: FastifyInstance,
-  { prisma, env }: { prisma: PrismaClient; env: Env },
+  { prisma, env, sms }: { prisma: PrismaClient; env: Env; sms: SmsSender },
 ): void {
   app.post('/v1/auth/otp', async (request, reply) => {
     const { phone } = requestOtpSchema.parse(request.body)
@@ -44,13 +45,25 @@ export function registerAuthRoutes(
       },
     })
 
-    if (env.OTP_DELIVERY === 'log') {
-      // Development only. Never log the code in production.
-      request.log.info({ phone, code }, 'issued sign-in code')
-    } else {
-      // An SMS provider would be called here. Not wired up: the design does
-      // not name one, and guessing would be worse than leaving the seam.
-      request.log.info({ phone }, 'issued sign-in code')
+    try {
+      await sms.send({
+        to: phone,
+        body: `${code} is your Lading sign-in code. It expires in 10 minutes.`,
+      })
+      // The code itself is never logged when it was really sent.
+      request.log.info({ phone, sender: sms.name }, 'sent sign-in code')
+    } catch (cause) {
+      request.log.error({ err: cause, phone }, 'could not send sign-in code')
+      // A provider outage is not the trader's fault, and a generic success
+      // here would leave them waiting for a message that never arrives.
+      if (cause instanceof SmsError) {
+        throw new AppError(
+          503,
+          'SMS_UNAVAILABLE',
+          'We could not send your code just now. Try again shortly.',
+        )
+      }
+      throw cause
     }
 
     // The response is identical whether or not the number is known, so this

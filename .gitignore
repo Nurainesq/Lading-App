@@ -13,3 +13,14 @@ dist-ssr
 
 # Prisma
 apps/api/prisma/*.db
+
+# Local document storage
+apps/api/.storage
+
+# Capacitor / iOS build output
+apps/web/ios/App/Pods
+apps/web/ios/App/build
+*.xcuserdatad
+*.mobileprovision
+*.p8
+*.p12
