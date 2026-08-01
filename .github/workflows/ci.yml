@@ -12,8 +12,28 @@ concurrency:
 
 jobs:
   build:
-    name: Typecheck and build
+    name: Typecheck, test and build
     runs-on: ubuntu-latest
+
+    # The journey test drives the whole deal lifecycle through the API against
+    # a real database. Without this service it would silently skip.
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: lading_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/lading_test?schema=public
 
     steps:
       - uses: actions/checkout@v4
@@ -26,10 +46,25 @@ jobs:
       - name: Install
         run: npm ci
 
-      # Run types separately from the build so a type error reports as a type
-      # error, rather than as a failed build step.
+      # The shared package is compiled first — both apps typecheck against its
+      # emitted declarations, not its source.
+      - name: Build shared
+        run: npm run build -w @lading/shared
+
+      - name: Generate Prisma client
+        run: npm run db:generate
+
+      - name: Apply schema
+        run: npx prisma db push --skip-generate
+        working-directory: apps/api
+
       - name: Typecheck
-        run: npm run typecheck
+        run: npm run typecheck --workspaces --if-present
+
+      # Money arithmetic, the deal state machine, and webhook signature
+      # verification. These are the parts that must not be wrong.
+      - name: Test
+        run: npm test
 
       - name: Build
         run: npm run build

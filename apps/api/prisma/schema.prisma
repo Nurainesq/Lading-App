@@ -1,0 +1,354 @@
+// Lading — programmable trade escrow.
+//
+// Money is stored as integer minor units (BigInt), never Decimal or Float.
+// Lading never takes custody: funds sit in WeWire-issued virtual accounts, so
+// the ledger here is an auditable record of provider-held money rather than a
+// wallet this service can spend from.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum KybStatus {
+  UNVERIFIED
+  PENDING
+  VERIFIED
+  REJECTED
+}
+
+enum DealStatus {
+  DRAFT
+  AWAITING_ACCEPTANCE
+  AWAITING_FUNDING
+  FUNDED
+  IN_TRANSIT
+  DOCUMENTS_PRESENTED
+  DISCREPANCY
+  RELEASED
+  REFUNDED
+  CANCELLED
+}
+
+enum DealSide {
+  BUYING
+  SELLING
+}
+
+enum ReleaseCondition {
+  VERIFIED_BILL_OF_LADING
+  DELIVERY_CONFIRMATION
+  SPLIT_SHIPPING_DELIVERY
+}
+
+enum AccountStatus {
+  REQUESTED
+  PENDING
+  DENIED
+  ACTIVE
+  SUSPENDED
+  CLOSED
+}
+
+enum DocumentKind {
+  BILL_OF_LADING
+  COMMERCIAL_INVOICE
+  PACKING_LIST
+  CERTIFICATE_OF_INCORPORATION
+  DIRECTOR_ID
+  PROOF_OF_ADDRESS
+  OTHER
+}
+
+enum CheckName {
+  CONSIGNEE
+  GOODS_DESCRIPTION
+  VESSEL_AND_VOYAGE
+  PORT_OF_DISCHARGE
+  SHIPPED_ON_BOARD_DATE
+}
+
+enum CheckResult {
+  MATCH
+  MISMATCH
+  UNREADABLE
+}
+
+enum DiscrepancyReason {
+  DOCUMENT_MISMATCH
+  QUANTITY_SHORT
+  SUSPECTED_FORGERY
+  OTHER
+}
+
+enum LedgerDirection {
+  CREDIT
+  DEBIT
+}
+
+/// A trading business. Maps one-to-one onto a WeWire sub-customer.
+model Business {
+  id           String    @id @default(uuid())
+  name         String?
+  country      String?   @db.VarChar(2)
+  kybStatus    KybStatus @default(UNVERIFIED)
+
+  /// WeWire sub-customer id, set once onboarding starts.
+  wewireSubCustomerId String? @unique
+
+  users        User[]
+  buyerDeals   Deal[]    @relation("BuyerBusiness")
+  sellerDeals  Deal[]    @relation("SellerBusiness")
+  documents    Document[]
+
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+}
+
+/// Authentication is by business phone — the trader has no separate username.
+model User {
+  id         String   @id @default(uuid())
+  phone      String   @unique
+  name       String?
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  createdAt  DateTime @default(now())
+  lastSeenAt DateTime?
+
+  @@index([businessId])
+}
+
+/// A one-time code. The code itself is stored hashed, never in the clear.
+model OtpChallenge {
+  id          String   @id @default(uuid())
+  phone       String
+  codeHash    String
+  attempts    Int      @default(0)
+  consumedAt  DateTime?
+  expiresAt   DateTime
+  createdAt   DateTime @default(now())
+
+  @@index([phone, expiresAt])
+}
+
+model Deal {
+  id        String     @id @default(uuid())
+  /// Human reference shown throughout the app, e.g. LD-4471.
+  reference String     @unique
+  status    DealStatus @default(DRAFT)
+
+  /// Which side the business that created the deal is on.
+  creatorSide DealSide
+
+  buyerBusinessId  String?
+  buyerBusiness    Business? @relation("BuyerBusiness", fields: [buyerBusinessId], references: [id])
+  sellerBusinessId String?
+  sellerBusiness   Business? @relation("SellerBusiness", fields: [sellerBusinessId], references: [id])
+
+  /// Counterparty as typed before they have an account of their own.
+  counterpartyName    String
+  counterpartyCountry String  @db.VarChar(2)
+  counterpartyContact String
+
+  goods           String
+  portOfLoading   String?
+  portOfDischarge String?
+  windowDays      Int     @default(26)
+
+  /// Escrowed value in minor units of valueCurrency.
+  valueMinor    BigInt
+  valueCurrency String  @db.VarChar(3)
+
+  /// What the buyer funds in, and what the seller is paid in.
+  fundingCurrency    String @db.VarChar(3)
+  settlementCurrency String @db.VarChar(3)
+
+  /// Derived at rate-lock time and then never recomputed.
+  totalDueMinor    BigInt?
+  feeMinor         BigInt?
+  settlementMinor  BigInt?
+
+  releaseCondition ReleaseCondition @default(VERIFIED_BILL_OF_LADING)
+
+  /// Single-use token in the seller's invite link — they need no account.
+  inviteToken     String?   @unique
+  inviteExpiresAt DateTime?
+
+  escrowAccount EscrowAccount?
+  rateLock      RateLock?
+  documents     Document[]
+  checks        DocumentCheck[]
+  discrepancies Discrepancy[]
+  timeline      TimelineEvent[]
+  ledger        LedgerEntry[]
+
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  acceptedAt  DateTime?
+  fundedAt    DateTime?
+  shippedAt   DateTime?
+  releasedAt  DateTime?
+
+  @@index([status])
+  @@index([buyerBusinessId])
+  @@index([sellerBusinessId])
+}
+
+/// One virtual account per deal. Nothing else is ever paid into it.
+model EscrowAccount {
+  id     String @id @default(uuid())
+  dealId String @unique
+  deal   Deal   @relation(fields: [dealId], references: [id], onDelete: Cascade)
+
+  /// WeWire account id.
+  providerAccountId String?       @unique
+  accountName       String
+  accountNumber     String?
+  bankName          String?
+  bankCode          String?
+  iban              String?
+  bic               String?
+  sortCode          String?
+  routingNumber     String?
+  currency          String        @db.VarChar(3)
+  status            AccountStatus @default(REQUESTED)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  closedAt  DateTime?
+}
+
+/// The rate quoted to the buyer, held for the full window.
+model RateLock {
+  id     String @id @default(uuid())
+  dealId String @unique
+  deal   Deal   @relation(fields: [dealId], references: [id], onDelete: Cascade)
+
+  fromCurrency String @db.VarChar(3)
+  toCurrency   String @db.VarChar(3)
+  /// rate = scaledRate / 10^scale, stored as an integer so it replays exactly.
+  scaledRate   BigInt
+  scale        Int
+  providerQuoteId String?
+
+  lockedAt  DateTime @default(now())
+  expiresAt DateTime
+}
+
+model Document {
+  id     String       @id @default(uuid())
+  kind   DocumentKind
+  dealId String?
+  deal   Deal?        @relation(fields: [dealId], references: [id], onDelete: Cascade)
+  /// KYB documents belong to a business rather than a deal.
+  businessId String?
+  business   Business? @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  filename   String
+  mimeType   String
+  sizeBytes  Int
+  /// Object storage key. File bytes never live in Postgres.
+  storageKey String
+  /// SHA-256 of the bytes, so a document cannot be swapped after presentation.
+  sha256     String
+
+  presentedAt DateTime?
+  uploadedAt  DateTime  @default(now())
+
+  @@index([dealId])
+  @@index([businessId])
+}
+
+/// Result of checking a presented bill of lading against the agreed terms.
+model DocumentCheck {
+  id     String      @id @default(uuid())
+  dealId String
+  deal   Deal        @relation(fields: [dealId], references: [id], onDelete: Cascade)
+  name   CheckName
+  result CheckResult
+  /// What was compared, for the audit trail.
+  expected String?
+  found    String?
+  detail   String?
+
+  checkedAt DateTime @default(now())
+
+  @@unique([dealId, name])
+}
+
+model Discrepancy {
+  id     String            @id @default(uuid())
+  dealId String
+  deal   Deal              @relation(fields: [dealId], references: [id], onDelete: Cascade)
+  reason DiscrepancyReason
+  note   String?
+
+  raisedByBusinessId String?
+  raisedAt   DateTime  @default(now())
+  /// Both sides get 5 days to agree an amended release.
+  respondBy  DateTime
+  resolvedAt DateTime?
+  resolution String?
+
+  @@index([dealId])
+}
+
+/// Append-only. Rows are never updated or deleted — corrections are new rows.
+model LedgerEntry {
+  id     String @id @default(uuid())
+  dealId String
+  deal   Deal   @relation(fields: [dealId], references: [id], onDelete: Cascade)
+
+  direction LedgerDirection
+  amountMinor BigInt
+  currency    String        @db.VarChar(3)
+  /// funding | fee | release | refund
+  kind        String
+  description String?
+
+  /// Provider transaction this entry reflects, for reconciliation.
+  providerTransactionId String? @unique
+
+  occurredAt DateTime @default(now())
+
+  @@index([dealId])
+}
+
+model TimelineEvent {
+  id     String @id @default(uuid())
+  dealId String
+  deal   Deal   @relation(fields: [dealId], references: [id], onDelete: Cascade)
+
+  kind   String
+  label  String
+  detail String?
+  /// Set when a status change produced this entry.
+  fromStatus DealStatus?
+  toStatus   DealStatus?
+
+  occurredAt DateTime @default(now())
+
+  @@index([dealId, occurredAt])
+}
+
+/// Every provider webhook, stored before processing so a redelivery is a
+/// no-op rather than a second payout.
+model WebhookEvent {
+  id          String   @id @default(uuid())
+  provider    String
+  /// Provider's own event id — the idempotency key.
+  externalId  String
+  type        String
+  payload     Json
+  signatureOk Boolean
+  processedAt DateTime?
+  error       String?
+  receivedAt  DateTime @default(now())
+
+  @@unique([provider, externalId])
+}
